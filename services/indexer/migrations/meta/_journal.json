@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1779099814025,
+      "tag": "0000_brainy_chamber",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779123098773,
+      "tag": "0001_omit_internal_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779168157082,
+      "tag": "0002_windy_loa",
+      "breakpoints": true
+    }
+  ]
+}

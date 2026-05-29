@@ -1,0 +1,3 @@
+export type SailsError = "SelfLoop" | "MarketPaused" | "RewardBelowMinimum" | "InsufficientPayment" | "TitleTooLong" | "DescriptionTooLong" | "AcceptanceTooLong" | "PayloadTooLong" | "IdSpaceExhausted" | "BountyNotFound" | "BountyNotOpen" | "BountyNotClaimed" | "BountyNotSubmitted" | "BountyNotAccepted" | "AlreadyWithdrawn" | "Unauthorized" | "ZeroHashRejected";
+export type TrackEnum = "Services" | "Social" | "Economy" | "Open";
+//# sourceMappingURL=_shim.d.ts.map

@@ -1,0 +1,7 @@
+node_modules/
+*.tsbuildinfo
+.DS_Store
+
+# dist/ is intentionally checked-in: consumed via file:-link by apps/web + services/indexer
+# (Phase 2 lock — sails-js-cli generated client lives in src/generated/ but compiled output
+# in dist/ is the published artifact downstream consumers import from)

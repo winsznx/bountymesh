@@ -1,0 +1,17 @@
+# Anything not copied into the image stages — keep the build context lean.
+node_modules
+dist
+.next
+.git
+.env
+.env.local
+.env.*.local
+docker-compose.yml
+docker
+tests
+scripts
+*.log
+*.md
+coverage
+.vscode
+.idea

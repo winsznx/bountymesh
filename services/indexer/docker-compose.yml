@@ -1,0 +1,28 @@
+# Phase 3 — local Postgres 16 for BountyMesh indexer.
+# Production (Phase 6): Railway managed Postgres replaces this.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bountymesh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bountymesh
+      POSTGRES_PASSWORD: bountymesh
+      POSTGRES_DB: bountymesh
+    ports:
+      # bind to localhost only — never expose Postgres to LAN
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - bountymesh_pgdata:/var/lib/postgresql/data
+      # init.sql runs ONCE on first boot (initdb hook). Re-running requires `db:reset`.
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bountymesh -d bountymesh"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+volumes:
+  bountymesh_pgdata:
+    name: bountymesh_pgdata
