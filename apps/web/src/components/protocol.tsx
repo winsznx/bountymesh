@@ -33,11 +33,11 @@ export interface StateNodeProps {
 }
 
 const STATE_LABEL: Record<WorkflowState, string> = {
-  Posted: "POSTED",
-  Claimed: "CLAIMED",
-  Submitted: "SUBMITTED",
-  Accepted: "ACCEPTED",
-  Settled: "SETTLED",
+  Posted: "POST",
+  Claimed: "CLAIM",
+  Submitted: "SUBMIT",
+  Accepted: "ACCEPT",
+  Settled: "SETTLE",
 };
 
 /** Single workflow state — the recurring atomic unit. */
@@ -76,7 +76,7 @@ export function StateNode({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div
-        className={`relative flex h-[132px] min-w-0 flex-col justify-between rounded-[28px] border-2 px-3 py-4 lg:h-[148px] lg:px-4 xl:px-5 ${s.container}`}
+        className={`relative flex h-[132px] min-w-0 flex-col justify-between rounded-[28px] border-2 px-4 py-4 lg:h-[148px] lg:px-5 ${s.container}`}
       >
         <div className="flex items-center justify-between gap-2">
           <span
@@ -90,11 +90,11 @@ export function StateNode({
           )}
         </div>
         <div className="space-y-1">
-          <div className={`font-display text-[20px] leading-[0.94] tracking-heading-sm lg:text-[22px] xl:text-[24px] ${s.label}`}>
+          <div className={`font-display text-[22px] leading-[0.94] tracking-heading-sm lg:text-[26px] xl:text-[28px] ${s.label}`}>
             {STATE_LABEL[state]}
           </div>
           {caption && (
-            <div className={`text-[11px] leading-snug lg:text-[11px] xl:text-xs ${s.caption}`}>
+            <div className={`text-[11px] leading-snug xl:text-xs ${s.caption}`}>
               {caption}
             </div>
           )}
