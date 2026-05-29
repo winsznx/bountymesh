@@ -40,7 +40,11 @@ export function BountyRow({ bounty }: { bounty: Bounty }) {
         <RewardCell atomic={bounty.reward} />
       </div>
       <div>
-        <AddressChip address={bounty.poster} chainSS58={chainSS58} />
+        <AddressChip
+          address={bounty.poster}
+          chainSS58={chainSS58}
+          copyable={false}
+        />
       </div>
       <div className="font-mono text-xs text-abyssal-ink/60">
         #{bounty.postedAt.toLocaleString()}

@@ -1,8 +1,3 @@
-export const metadata = {
-  title: "Tracks",
-  description: "Four bounty categories. Filtered on chain, indexed off chain, used by workers to route jobs to the right adapter.",
-};
-
 # Tracks
 
 Every bounty is posted under exactly one of four tracks. The track is a SCALE-encoded `TrackEnum` written into the bounty struct at `Post` time and emitted in the `BountyPosted` event. Workers filter on it; the indexer maintains a `bounties_by_track` index; the frontend renders it as a filter chip.

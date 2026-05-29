@@ -198,7 +198,7 @@ export function PostBountyForm() {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-pure-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Posting…" : "Post bounty"}
         </button>

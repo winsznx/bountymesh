@@ -79,7 +79,7 @@ function EmptyState() {
       </div>
       <Link
         href="/bounties"
-        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange"
+        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-pure-white transition-opacity hover:opacity-90"
       >
         Browse open bounties
       </Link>

@@ -1,8 +1,3 @@
-export const metadata = {
-  title: "Bounty lifecycle",
-  description: "The BountyStatus state machine: 8 declared variants, 4 currently reachable. Every transition gated by typed guards.",
-};
-
 # Bounty lifecycle
 
 A bounty moves through a state machine encoded in the on-chain `BountyStatus` enum. Eight variants are declared; **four are reachable today** (Open, Claimed, Submitted, Accepted). The remaining four are reserved for future governance methods.

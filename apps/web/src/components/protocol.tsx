@@ -74,9 +74,9 @@ export function StateNode({
   };
   const s = STAGE_STYLES[stage];
   return (
-    <div className="flex min-w-[180px] flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <div
-        className={`relative flex h-[140px] flex-col justify-between rounded-[28px] border-2 px-5 py-4 ${s.container}`}
+        className={`relative flex h-[132px] min-w-0 flex-col justify-between rounded-[28px] border-2 px-3 py-4 lg:h-[140px] lg:px-5 ${s.container}`}
       >
         <div className="flex items-center justify-between">
           <span
@@ -90,11 +90,11 @@ export function StateNode({
           )}
         </div>
         <div className="space-y-1">
-          <div className={`font-display text-[24px] leading-[0.94] tracking-heading-sm ${s.label}`}>
+          <div className={`font-display text-[21px] leading-[0.94] tracking-heading-sm lg:text-[24px] ${s.label}`}>
             {STATE_LABEL[state]}
           </div>
           {caption && (
-            <div className={`text-xs leading-snug ${s.caption}`}>
+            <div className={`text-[11px] leading-snug lg:text-xs ${s.caption}`}>
               {caption}
             </div>
           )}
@@ -192,9 +192,9 @@ export function ProtocolDiagram() {
       </div>
 
       {/* Desktop horizontal rail */}
-      <div className="hidden items-stretch gap-3 md:flex">
+      <div className="hidden grid-cols-5 gap-3 md:grid lg:gap-4">
         {states.map((s, i) => (
-          <FragmentRail key={s.id} index={i} total={states.length} state={s} />
+          <DiagramStep key={s.id} index={i} total={states.length} state={s} />
         ))}
       </div>
 
@@ -210,7 +210,7 @@ export function ProtocolDiagram() {
   );
 }
 
-function FragmentRail({
+function DiagramStep({
   index,
   total,
   state,
@@ -222,14 +222,17 @@ function FragmentRail({
   const isLast = index === total - 1;
   const railActive = state.stage === "past";
   return (
-    <>
+    <div className="relative min-w-0">
       <StateNode {...state} />
       {!isLast && (
-        <div className="flex h-[140px] flex-1 items-center px-2">
+        <div
+          className="absolute top-[58px] -right-5 z-10 hidden w-7 items-center lg:-right-6 lg:flex"
+          aria-hidden
+        >
           <RailSegment active={railActive} />
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -501,18 +504,20 @@ export function TrackLane({
         <div className="text-xs text-abyssal-ink/60">{description}</div>
       </div>
 
-      <div className="relative flex items-center" aria-hidden>
+      <div className="relative flex min-w-0 items-center" aria-hidden>
         {/* Lane line */}
-        <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-abyssal-ink/15" />
+        <div className="absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-abyssal-ink/15 md:block" />
         {/* Markers */}
-        <div className="relative z-10 flex w-full items-center justify-between gap-3">
+        <div className="relative z-10 flex w-full min-w-0 flex-wrap items-center justify-start gap-3 md:flex-nowrap md:justify-between">
           {markers.map((m) => (
             <div
               key={m.id}
-              className="flex items-center gap-2 rounded-input border border-abyssal-ink/20 bg-pure-white px-3 py-1.5 text-xs"
+              className="flex max-w-full min-w-0 items-center gap-2 rounded-input border border-abyssal-ink/20 bg-pure-white px-3 py-1.5 text-xs"
             >
               <span className="font-mono text-abyssal-ink/60">{m.id}</span>
-              <span className="font-medium text-abyssal-ink">{m.label}</span>
+              <span className="min-w-0 truncate font-medium text-abyssal-ink">
+                {m.label}
+              </span>
               <span className="rounded-input bg-digital-orange px-2 py-0.5 font-mono text-[10px] font-medium text-pure-white">
                 {m.reward}
               </span>

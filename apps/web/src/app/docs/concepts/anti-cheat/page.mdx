@@ -1,8 +1,3 @@
-export const metadata = {
-  title: "Anti-cheat",
-  description: "Self-loop rejection, refund correctness on Err branches, overflow-checked counters. Per Vara A2A scoring spec.",
-};
-
 # Anti-cheat
 
 The Vara Agent Network's leaderboard scoring discounts self-calls. Apps that artificially inflate their `integrationsIn` by calling themselves from a sock-puppet wallet get zero credit. The contract enforces this at the boundary.

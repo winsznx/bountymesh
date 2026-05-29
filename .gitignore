@@ -57,3 +57,7 @@ AGENTS.md
 !packages/sdk/dist/
 !packages/sdk/dist/**
 caldera/
+
+# Codex visual-audit artifacts (screenshots from Playwright passes)
+apps/web/.audit/
+apps/web/.audit-*.png

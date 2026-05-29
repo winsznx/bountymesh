@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export function ParamTable({ children }: { children: ReactNode }) {
   return (
-    <div className="my-6 divide-y divide-abyssal-ink/10/70 overflow-hidden rounded-md border border-ash-white">
+    <div className="my-6 divide-y divide-abyssal-ink/10 overflow-hidden rounded-md border border-ash-white">
       {children}
     </div>
   );

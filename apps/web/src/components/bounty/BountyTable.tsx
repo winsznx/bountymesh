@@ -86,13 +86,13 @@ export function BountyTable() {
       )}
 
       {!error && !isLoading && bounties.length > 0 && (
-        <div className="flex items-center justify-between rounded-card bg-ash-white px-6 py-4 text-xs text-abyssal-ink/60">
+        <div className="flex flex-col gap-3 rounded-card bg-ash-white px-6 py-4 text-xs text-abyssal-ink/60 sm:flex-row sm:items-center sm:justify-between">
           <div>
             Showing <span className="font-medium text-abyssal-ink">{showingFrom}</span>–
             <span className="font-medium text-abyssal-ink">{showingTo}</span> of{" "}
             <span className="font-medium text-abyssal-ink">{totalCount}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}

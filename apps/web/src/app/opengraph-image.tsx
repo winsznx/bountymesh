@@ -8,15 +8,13 @@ export const alt = "BountyMesh — Hire AI agents on Vara";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Operations-terminal palette (matches PRD §3 + the site's design language).
-const SLATE_950 = "#020617";
-const SLATE_900 = "#0f172a";
-const SLATE_700 = "#334155";
-const SLATE_400 = "#94a3b8";
-const SLATE_500 = "#64748b";
-const SLATE_100 = "#f1f5f9";
-const SLATE_300 = "#cbd5e1";
-const CYAN_400 = "#22d3ee";
+// Site palette, kept in sync with globals.css.
+const BASALT_CANVAS = "#e2e2df";
+const ABYSSAL_INK = "#070607";
+const PURE_WHITE = "#ffffff";
+const DIGITAL_ORANGE = "#fc5000";
+const CYBER_VIOLET = "#524ae9";
+const PIXEL_GLARE = "#f5f28e";
 
 export default async function Image() {
   return new ImageResponse(
@@ -27,10 +25,10 @@ export default async function Image() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          backgroundColor: SLATE_950,
-          backgroundImage: `radial-gradient(circle at 92% 12%, rgba(34, 211, 238, 0.22), transparent 38%), radial-gradient(circle at 5% 95%, rgba(34, 211, 238, 0.06), transparent 45%)`,
+          backgroundColor: BASALT_CANVAS,
           padding: "64px 80px",
           fontFamily: "sans-serif",
+          color: ABYSSAL_INK,
         }}
       >
         {/* top row — wordmark + status pill */}
@@ -41,23 +39,41 @@ export default async function Image() {
             alignItems: "center",
             fontFamily: "monospace",
             fontSize: 22,
-            color: SLATE_400,
+            color: ABYSSAL_INK,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
           }}
         >
-          <div style={{ display: "flex", color: SLATE_100, fontWeight: 600 }}>
-            bountymesh
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              color: ABYSSAL_INK,
+              fontWeight: 600,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                backgroundColor: DIGITAL_ORANGE,
+              }}
+            />
+            BOUNTYMESH
           </div>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: 12,
-              border: `1px solid ${SLATE_700}`,
+              backgroundColor: PURE_WHITE,
+              border: `1px solid rgba(7, 6, 7, 0.16)`,
               borderRadius: 999,
               padding: "8px 18px",
-              color: CYAN_400,
+              color: ABYSSAL_INK,
               fontSize: 18,
               letterSpacing: "0.12em",
             }}
@@ -68,7 +84,7 @@ export default async function Image() {
                 width: 10,
                 height: 10,
                 borderRadius: 999,
-                backgroundColor: CYAN_400,
+                backgroundColor: CYBER_VIOLET,
               }}
             />
             VARA MAINNET
@@ -91,19 +107,19 @@ export default async function Image() {
               display: "flex",
               fontSize: 96,
               fontWeight: 700,
-              color: SLATE_100,
+              color: ABYSSAL_INK,
               lineHeight: 1.02,
-              letterSpacing: "-0.03em",
+              letterSpacing: "0.01em",
             }}
           >
-            Hire AI agents on Vara.
+            Work becomes payment.
           </div>
 
           <div
             style={{
               display: "flex",
               fontSize: 36,
-              color: SLATE_300,
+              color: "rgba(7, 6, 7, 0.72)",
               lineHeight: 1.25,
               maxWidth: 980,
             }}
@@ -117,7 +133,7 @@ export default async function Image() {
               display: "flex",
               fontFamily: "monospace",
               fontSize: 24,
-              color: CYAN_400,
+              color: DIGITAL_ORANGE,
               marginTop: 8,
               letterSpacing: "0.02em",
             }}
@@ -133,14 +149,22 @@ export default async function Image() {
             justifyContent: "space-between",
             alignItems: "center",
             paddingTop: 24,
-            borderTop: `1px solid ${SLATE_900}`,
+            borderTop: `1px solid rgba(7, 6, 7, 0.14)`,
             fontFamily: "monospace",
             fontSize: 20,
-            color: SLATE_500,
+            color: "rgba(7, 6, 7, 0.56)",
           }}
         >
           <div style={{ display: "flex" }}>bountymesh.xyz</div>
-          <div style={{ display: "flex" }}>
+          <div
+            style={{
+              display: "flex",
+              backgroundColor: PIXEL_GLARE,
+              color: ABYSSAL_INK,
+              borderRadius: 999,
+              padding: "8px 16px",
+            }}
+          >
             sha256-verified delivery envelopes
           </div>
         </div>

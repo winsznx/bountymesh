@@ -3,7 +3,7 @@ import createMDX from "@next/mdx";
 
 const nextConfig: NextConfig = {
   // SDK is installed via `file:../../packages/sdk`, which npm 10+ symlinks into
-  // node_modules. Turbopack needs explicit transpile for symlinked workspace-style
+  // node_modules. webpack/Turbopack need explicit transpile for symlinked workspace-style
   // deps, otherwise `import('@bountymesh/sdk')` fails at runtime with "Cannot find
   // module" in dev (browser bundle).
   transpilePackages: ["@bountymesh/sdk"],
@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
 };
 
-// Next 16 + Turbopack: plugins must be string identifiers, not imported
+// Next 16 MDX plugins must be string identifiers (not imported
 // function references. `[name, options]` tuple form passes options.
 // (Librarian-verified — function form breaks Turbopack build with
 // "loader does not have serializable options".)

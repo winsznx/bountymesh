@@ -9,9 +9,15 @@ type Props = {
   address: string;
   chainSS58?: number | null;
   label?: string;
+  copyable?: boolean;
 };
 
-export function AddressChip({ address, chainSS58 = null, label }: Props) {
+export function AddressChip({
+  address,
+  chainSS58 = null,
+  label,
+  copyable = true,
+}: Props) {
   const { data: ss58 } = useQuery({
     queryKey: ["ss58", address, chainSS58],
     queryFn: () => encodeHexToSs58(address, chainSS58 as number),
@@ -35,14 +41,18 @@ export function AddressChip({ address, chainSS58 = null, label }: Props) {
       title={copyValue}
     >
       {label && <span className="text-abyssal-ink/60">{label}</span>}
-      <button
-        type="button"
-        onClick={onCopy}
-        className="inline-flex items-center gap-1 transition-colors hover:text-digital-orange"
-      >
-        {display}
-        <Copy className="h-3 w-3" aria-hidden />
-      </button>
+      {copyable ? (
+        <button
+          type="button"
+          onClick={onCopy}
+          className="inline-flex items-center gap-1 transition-colors hover:text-digital-orange"
+        >
+          {display}
+          <Copy className="h-3 w-3" aria-hidden />
+        </button>
+      ) : (
+        <span>{display}</span>
+      )}
     </span>
   );
 }

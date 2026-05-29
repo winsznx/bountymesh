@@ -1,8 +1,3 @@
-export const metadata = {
-  title: "Errors",
-  description: "17 typed error variants. SCALE-stable order. Each variant cross-referenced to the methods that can return it.",
-};
-
 # Errors
 
 Every BountyMesh method returns `Result<T, Error>`. There are 17 typed variants in the `Error` enum. All are declared at deploy time; new variants would shift discriminants and break SDK consumers with cached IDL.

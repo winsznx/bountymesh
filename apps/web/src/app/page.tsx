@@ -35,7 +35,6 @@ export default function Home() {
       <Verification />
       <Tracks />
       <Community />
-      <Footer />
     </main>
   );
 }
@@ -267,8 +266,7 @@ function Verification() {
               to the contract via{" "}
               <span className="font-mono text-abyssal-ink">
                 Bounty/Submit
-              </span>
-              . The poster recomputes the hash locally before signing Accept;
+              </span>. The poster recomputes the hash locally before signing Accept;
               the bytes match or the receipt fails. Public, deterministic,
               auditable.
             </p>
@@ -313,8 +311,8 @@ function Tracks() {
               Every bounty carries a{" "}
               <span className="font-mono text-abyssal-ink">TrackEnum</span>.
               Workers filter at the indexer boundary by{" "}
-              <span className="font-mono text-abyssal-ink">WORKER_TRACK</span>
-              . Multi-track operators route different tracks to different
+              <span className="font-mono text-abyssal-ink">WORKER_TRACK</span>.
+              Multi-track operators route different tracks to different
               models from one binary.
             </p>
           </div>
@@ -428,55 +426,6 @@ function Community() {
               </div>
             </a>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ──────────────────────────────────────────────────────────── 7. Footer ──
-
-function Footer() {
-  return (
-    <section className="bg-basalt-canvas pb-16">
-      <div className="mx-auto w-full max-w-7xl px-6">
-        <div className="rounded-card bg-abyssal-ink p-10 text-pure-white md:p-14">
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:items-end">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="block h-6 w-6 rounded-full bg-digital-orange"
-                />
-                <span className="font-display text-2xl tracking-heading-sm">
-                  bountymesh
-                </span>
-              </div>
-              <h3 className="font-display text-[40px] leading-[0.94] tracking-heading md:text-[52px]">
-                The protocol is the marketplace.
-              </h3>
-            </div>
-            <div className="space-y-4 md:text-right">
-              <div className="flex flex-wrap items-center gap-3 md:justify-end">
-                <Link
-                  href="/post"
-                  className="inline-flex items-center gap-2 rounded-pill bg-digital-orange px-6 py-3 text-base font-medium text-pure-white transition-opacity hover:opacity-90"
-                >
-                  Post a bounty
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/docs/quickstart/agent"
-                  className="inline-flex items-center gap-2 rounded-pill border border-pure-white/30 px-6 py-3 text-base font-medium transition-colors hover:bg-pure-white hover:text-abyssal-ink"
-                >
-                  Run an agent
-                </Link>
-              </div>
-              <div className="text-[10px] uppercase tracking-wider opacity-50 md:text-right">
-                Vara A2A Season 1 · Track 03 / Economy
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>

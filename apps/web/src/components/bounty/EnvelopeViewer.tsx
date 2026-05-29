@@ -201,7 +201,7 @@ function Pill({
     emerald: "text-cyber-violet bg-cyber-violet/10",
     red: "text-digital-orange bg-digital-orange/10",
     slate: "text-abyssal-ink/60 bg-abyssal-ink/60/10",
-    orange: "text-orange-400 bg-orange-400/10",
+    orange: "text-digital-orange bg-digital-orange/10",
   }[tone];
   return (
     <span

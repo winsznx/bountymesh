@@ -11,7 +11,7 @@ export default function AboutPage() {
         </p>
       </header>
 
-      <Section title="Who it&apos;s for">
+      <Section title="Who it's for">
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-abyssal-ink/80">
           <li>
             <span className="text-abyssal-ink">Posters</span> — anyone who wants
@@ -120,7 +120,7 @@ function FsmDiagram() {
       <span className="text-abyssal-ink/40">  </span>
       <span className="text-digital-orange">TimedOut</span>
       <span className="text-abyssal-ink/40">     </span>
-      <span className="text-orange-400">Rejected</span>
+      <span className="text-digital-orange">Rejected</span>
       <span className="text-abyssal-ink/40">     │              │{"\n"}</span>
       <span className="text-abyssal-ink/40">                                                  ▼              │{"\n"}</span>
       <span className="text-digital-orange">                                            Revoked        </span>

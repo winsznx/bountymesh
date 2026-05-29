@@ -6,7 +6,7 @@ type Props = {
 };
 
 /**
- * RewardCell — the Bebas Neue moneyshot. The big number uses the display font;
+ * RewardCell — the headline moneyshot. The big number uses the display font;
  * the atomic-unit caption below uses DM Sans so the eye reads the headline first.
  */
 export function RewardCell({ atomic, align = "left" }: Props) {

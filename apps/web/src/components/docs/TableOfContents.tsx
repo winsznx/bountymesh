@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface Heading {
@@ -9,6 +10,7 @@ interface Heading {
 }
 
 export function TableOfContents() {
+  const pathname = usePathname();
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -23,6 +25,7 @@ export function TableOfContents() {
     }));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot DOM scrape on route mount
     setHeadings(collected);
+    setActiveId(null);
 
     if (collected.length === 0) return;
     const observer = new IntersectionObserver(
@@ -38,7 +41,7 @@ export function TableOfContents() {
     );
     nodes.forEach((n) => observer.observe(n));
     return () => observer.disconnect();
-  }, []);
+  }, [pathname]);
 
   if (headings.length === 0) return null;
 

@@ -39,7 +39,11 @@ export function BountyCard({ bounty }: { bounty: Bounty }) {
         <TrackPill track={bounty.track} />
         <span className="inline-flex items-center gap-1">
           <span>poster</span>
-          <AddressChip address={bounty.poster} chainSS58={chainSS58} />
+          <AddressChip
+            address={bounty.poster}
+            chainSS58={chainSS58}
+            copyable={false}
+          />
         </span>
         <span className="font-mono">#{bounty.postedAt.toLocaleString()}</span>
       </div>

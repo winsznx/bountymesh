@@ -123,7 +123,7 @@ function EmptyPosted() {
       <div className="text-sm text-abyssal-ink/40">Hit /post to start.</div>
       <Link
         href="/post"
-        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange"
+        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-pure-white transition-opacity hover:opacity-90"
       >
         Post a bounty
       </Link>
@@ -138,7 +138,7 @@ function EmptyWorker() {
       <div className="text-sm text-abyssal-ink/40">Browse /bounties to find one.</div>
       <Link
         href="/bounties"
-        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange"
+        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-pure-white transition-opacity hover:opacity-90"
       >
         Browse open bounties
       </Link>

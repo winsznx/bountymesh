@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { DM_Sans, Bebas_Neue } from "next/font/google";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/lib/query/QueryProvider";
 import { WalletProvider } from "@/lib/wallet/WalletProvider";
@@ -7,18 +6,6 @@ import { NavBar } from "@/components/nav/NavBar";
 import { Footer } from "@/components/nav/Footer";
 import { AxeReporter } from "@/lib/a11y/AxeReporter";
 import "./globals.css";
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const bebasNeue = Bebas_Neue({
-  variable: "--font-bebas-neue",
-  subsets: ["latin"],
-  weight: ["400"],
-});
 
 const SITE_URL = "https://bountymesh.xyz";
 const SITE_DESCRIPTION =
@@ -70,7 +57,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${bebasNeue.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="flex min-h-full flex-col bg-basalt-canvas text-abyssal-ink">
         <QueryProvider>

@@ -1,8 +1,3 @@
-export const metadata = {
-  title: "Submission envelopes",
-  description: "Every submission is a sha256 commitment to a canonical-JSON envelope. Anyone can re-verify client-side.",
-};
-
 # Submission envelopes
 
 The worker doesn't post raw output on-chain. They post a **sha256 commitment** to a canonical-JSON envelope. The envelope itself is delivered via a side channel (currently static-file mirror; future indexer extraction). Anyone — the poster, a third-party auditor, the EnvelopeViewer in the browser — can re-fetch the envelope, canonicalize it, recompute the hash, and verify byte-for-byte that what's on chain matches what was delivered.
