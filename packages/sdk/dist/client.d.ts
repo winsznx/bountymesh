@@ -1,5 +1,6 @@
 import { SailsProgram } from './generated/lib.js';
 import type { BountyAcceptedEvent, BountyAcceptedFilter, BountyCancelledEvent, BountyCancelledFilter, BountyClaimedEvent, BountyClaimedFilter, BountyMeshClientOptions, BountyPostedEvent, BountyPostedFilter, BountyRejectedEvent, BountyRejectedFilter, BountyRevokedEvent, BountyRevokedFilter, BountySubmittedEvent, BountySubmittedFilter, BountyTimedOutEvent, BountyTimedOutFilter, BountyWithdrawnEvent, BountyWithdrawnFilter, PostArgs, TxResult, Unsubscribe } from './types.js';
+import type { HexString } from '@gear-js/api/types';
 /**
  * BountyMeshClient — ergonomic wrapper around the auto-generated sails-js client.
  *
@@ -18,6 +19,28 @@ export declare class BountyMeshClient {
     private readonly events;
     constructor(opts: BountyMeshClientOptions);
     post(args: PostArgs): Promise<TxResult<{
+        bountyId: bigint;
+    }>>;
+    /**
+     * Post with staged lifecycle callbacks for richer UX (3-state buttons:
+     * signing → submitted → finalized). Returns the same TxResult as `post`.
+     *
+     * Callback timing:
+     *   onSigning     fires before the wallet extension popup is opened
+     *   onSubmitted   fires when the runtime accepts the tx (txHash known)
+     *   onFinalized   fires when the contract reply lands ok (bountyId known)
+     *   onError       fires on any throw (signer rejection, network drop, etc.)
+     *
+     * Note that `onFinalized` does NOT fire on contract-typed `Err` replies —
+     * those resolve the returned TxResult with `ok: false` instead, mirroring
+     * `post`. `onError` is reserved for transport / signer failures.
+     */
+    postWithCallback(args: PostArgs, callbacks?: {
+        onSigning?: () => void;
+        onSubmitted?: (txHash: HexString) => void;
+        onFinalized?: (bountyId: bigint, txHash: HexString) => void;
+        onError?: (error: Error) => void;
+    }): Promise<TxResult<{
         bountyId: bigint;
     }>>;
     claim(id: bigint): Promise<TxResult<null>>;

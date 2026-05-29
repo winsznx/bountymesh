@@ -28,6 +28,7 @@ import type {
 } from './types.js';
 import type { Signer as PolkadotSigner } from '@polkadot/api/types';
 import type { IKeyringPair } from '@polkadot/types/types';
+import type { HexString } from '@gear-js/api/types';
 
 const HEX_64 = /^0x[0-9a-fA-F]{64}$/;
 const HEX_64_LOWER = /^0x[0-9a-f]{64}$/;
@@ -151,6 +152,69 @@ export class BountyMeshClient {
       txHash,
       blockHash,
     };
+  }
+
+  /**
+   * Post with staged lifecycle callbacks for richer UX (3-state buttons:
+   * signing → submitted → finalized). Returns the same TxResult as `post`.
+   *
+   * Callback timing:
+   *   onSigning     fires before the wallet extension popup is opened
+   *   onSubmitted   fires when the runtime accepts the tx (txHash known)
+   *   onFinalized   fires when the contract reply lands ok (bountyId known)
+   *   onError       fires on any throw (signer rejection, network drop, etc.)
+   *
+   * Note that `onFinalized` does NOT fire on contract-typed `Err` replies —
+   * those resolve the returned TxResult with `ok: false` instead, mirroring
+   * `post`. `onError` is reserved for transport / signer failures.
+   */
+  async postWithCallback(
+    args: PostArgs,
+    callbacks: {
+      onSigning?: () => void;
+      onSubmitted?: (txHash: HexString) => void;
+      onFinalized?: (bountyId: bigint, txHash: HexString) => void;
+      onError?: (error: Error) => void;
+    } = {},
+  ): Promise<TxResult<{ bountyId: bigint }>> {
+    try {
+      const tx = this.program.bountyService.post(
+        args.title,
+        args.description,
+        args.acceptance,
+        args.reward,
+        args.deadline ?? null,
+        args.track,
+      );
+
+      if (isInjectedSigner(this.signer)) {
+        tx.withAccount(this.signer.address, {
+          signer: this.signer.signer as PolkadotSigner,
+        });
+      } else {
+        tx.withAccount(this.signer);
+      }
+      tx.withValue(args.reward);
+      await tx.calculateGas();
+
+      callbacks.onSigning?.();
+      const sent = await tx.signAndSend();
+      const { txHash, blockHash } = sent;
+      callbacks.onSubmitted?.(txHash);
+
+      const reply = await sent.response();
+
+      if ('ok' in reply) {
+        const bountyId = BigInt(reply.ok as number | string | bigint);
+        callbacks.onFinalized?.(bountyId, txHash);
+        return { ok: true, value: { bountyId }, txHash, blockHash };
+      }
+      return { ok: false, error: adaptErr(reply.err), txHash, blockHash };
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      callbacks.onError?.(e);
+      throw e;
+    }
   }
 
   async claim(id: bigint): Promise<TxResult<null>> {

@@ -13,6 +13,7 @@ import {
 import { usePostBounty } from "@/lib/mutations/usePostBounty";
 import { useChainHead } from "@/lib/queries/useChainHead";
 import { showPostToast } from "@/lib/tx/toast";
+import { formatBlockTarget } from "@/lib/blocks";
 import type { Track } from "@/components/primitives/TrackPill";
 
 const TRACKS: Track[] = ["Services", "Economy", "Social", "Open"];
@@ -63,11 +64,12 @@ function formatAtomicMin(): string {
 export function PostBountyForm() {
   const router = useRouter();
   const head = useChainHead();
-  const { mutateAsync, isPending } = usePostBounty();
+  const { mutateAsync, isPending, stage } = usePostBounty();
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
@@ -178,11 +180,15 @@ export function PostBountyForm() {
         id="bm-deadline"
         label="Deadline (block height, optional)"
         error={errors.deadlineBlock?.message}
-        hint={
-          head
-            ? `Current head: #${head.head.toLocaleString()} (~6s per block on Vara)`
-            : "Loading current head…"
-        }
+        hint={(() => {
+          if (!head) return "Loading current head…";
+          const raw = watch("deadlineBlock");
+          const targetBlock = raw ? Number(raw) : null;
+          if (targetBlock && Number.isFinite(targetBlock) && targetBlock > 0) {
+            return formatBlockTarget(head.head, targetBlock);
+          }
+          return `Current head: #${head.head.toLocaleString()} (~3s per block on Vara)`;
+        })()}
       >
         <input
           {...register("deadlineBlock")}
@@ -194,16 +200,95 @@ export function PostBountyForm() {
         />
       </Field>
 
+      {(stage.kind === "signing" ||
+        stage.kind === "submitted" ||
+        stage.kind === "posted") && <StageStrip stage={stage} />}
+
       <div className="flex items-center justify-end gap-3 border-t border-ash-white pt-4">
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-pure-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-pill bg-digital-orange px-6 py-3 text-sm font-medium text-pure-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isPending ? "Posting…" : "Post bounty"}
+          {stage.kind === "signing"
+            ? "Signing…"
+            : stage.kind === "submitted"
+              ? "Pending…"
+              : stage.kind === "posted"
+                ? "Posted ✓"
+                : "Post bounty"}
         </button>
       </div>
     </form>
+  );
+}
+
+function StageStrip({
+  stage,
+}: {
+  stage:
+    | { kind: "signing" }
+    | { kind: "submitted"; txHash: string }
+    | { kind: "posted"; bountyId: bigint; txHash: string };
+}) {
+  const steps: Array<{
+    key: "signing" | "submitted" | "posted";
+    label: string;
+  }> = [
+    { key: "signing", label: "Signing" },
+    { key: "submitted", label: "Submitted" },
+    { key: "posted", label: "Posted" },
+  ];
+  const activeIdx =
+    stage.kind === "signing"
+      ? 0
+      : stage.kind === "submitted"
+        ? 1
+        : 2;
+  return (
+    <div className="space-y-3 rounded-card border border-abyssal-ink/10 bg-pure-white p-4">
+      <div className="flex items-center justify-between">
+        {steps.map((step, i) => {
+          const done = i < activeIdx;
+          const active = i === activeIdx;
+          return (
+            <div key={step.key} className="flex flex-1 items-center gap-2">
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-mono ${
+                  done
+                    ? "bg-abyssal-ink text-pure-white"
+                    : active
+                      ? "bg-digital-orange text-pure-white"
+                      : "bg-basalt-canvas text-abyssal-ink/50"
+                }`}
+              >
+                {done ? "✓" : i + 1}
+              </span>
+              <span
+                className={`text-xs font-medium ${
+                  done || active ? "text-abyssal-ink" : "text-abyssal-ink/40"
+                }`}
+              >
+                {step.label}
+              </span>
+              {i < steps.length - 1 && (
+                <span
+                  className={`mx-1 h-px flex-1 ${
+                    done ? "bg-abyssal-ink" : "bg-abyssal-ink/15"
+                  }`}
+                  aria-hidden
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {stage.kind !== "signing" && (
+        <div className="font-mono text-[11px] text-abyssal-ink/60">
+          tx {stage.txHash.slice(0, 10)}…{stage.txHash.slice(-6)}
+        </div>
+      )}
+    </div>
   );
 }
 

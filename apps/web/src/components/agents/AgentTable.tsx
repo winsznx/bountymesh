@@ -1,24 +1,72 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { useAgents } from "@/lib/queries/useAgents";
+import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { useAgents, type Agent } from "@/lib/queries/useAgents";
 import { AgentRow } from "./AgentRow";
 import { AgentCard } from "./AgentCard";
 
 export const GRID_TEMPLATE =
   "220px 100px 100px 110px 130px 110px";
 
+type SortKey =
+  | "address"
+  | "claimCount"
+  | "submitCount"
+  | "distinctBounties"
+  | "lastActiveBlock"
+  | "deliveryRatePct";
+
+const COLUMNS: Array<{ key: SortKey; label: string }> = [
+  { key: "address", label: "Worker" },
+  { key: "claimCount", label: "Claims" },
+  { key: "submitCount", label: "Submits" },
+  { key: "distinctBounties", label: "Bounties" },
+  { key: "lastActiveBlock", label: "Last active" },
+  { key: "deliveryRatePct", label: "Delivery" },
+];
+
+function compare(a: Agent, b: Agent, key: SortKey): number {
+  if (key === "address") return a.address.localeCompare(b.address);
+  if (key === "claimCount") return a.claimCount - b.claimCount;
+  if (key === "submitCount") return a.submitCount - b.submitCount;
+  if (key === "distinctBounties") return a.distinctBounties - b.distinctBounties;
+  if (key === "lastActiveBlock") return a.lastActiveBlock - b.lastActiveBlock;
+  return a.deliveryRatePct - b.deliveryRatePct;
+}
+
 export function AgentTable() {
   const { agents, totalEvents, totalBounties, isLoading, error } = useAgents();
+
+  const [sortKey, setSortKey] = useState<SortKey>("submitCount");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const sorted = useMemo(() => {
+    const arr = [...agents];
+    arr.sort((a, b) => {
+      const cmp = compare(a, b, sortKey);
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+    return arr;
+  }, [agents, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
 
   return (
     <div className="space-y-3">
       {error ? null : (
         <div className="flex items-center justify-between text-xs text-abyssal-ink/60">
           <span>
-            <span className="text-abyssal-ink">{agents.length}</span>{" "}
-            {agents.length === 1 ? "agent" : "agents"}
+            <span className="text-abyssal-ink">{sorted.length}</span>{" "}
+            {sorted.length === 1 ? "agent" : "agents"}
             {" · "}
             <span className="text-abyssal-ink">{totalEvents}</span> events
             {totalBounties > 0 && (
@@ -37,22 +85,46 @@ export function AgentTable() {
           className="hidden items-center gap-4 border-b border-ash-white px-4 py-3 text-xs font-medium uppercase tracking-wider text-abyssal-ink/60 md:grid"
           style={{ gridTemplateColumns: GRID_TEMPLATE }}
         >
-          <div>Worker</div>
-          <div>Claims</div>
-          <div>Submits</div>
-          <div>Bounties</div>
-          <div>Last active</div>
-          <div>Delivery</div>
+          {COLUMNS.map((col) => {
+            const isActive = sortKey === col.key;
+            const Icon = isActive
+              ? sortDir === "desc"
+                ? ChevronDown
+                : ChevronUp
+              : ChevronsUpDown;
+            const ariaSort: "ascending" | "descending" | "none" = isActive
+              ? sortDir === "desc"
+                ? "descending"
+                : "ascending"
+              : "none";
+            return (
+              <div key={col.key} role="columnheader" aria-sort={ariaSort}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort(col.key)}
+                  aria-label={`Sort by ${col.label}, ${
+                    isActive ? `currently ${ariaSort}` : "not sorted"
+                  }`}
+                  className={`inline-flex items-center gap-1 text-left transition-colors hover:text-abyssal-ink ${
+                    isActive ? "text-digital-orange" : "text-abyssal-ink/60"
+                  }`}
+                >
+                  {col.label}
+                  <Icon className="h-3 w-3" aria-hidden />
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {error ? (
           <ErrorState message={error.message} />
-        ) : isLoading && agents.length === 0 ? (
+        ) : isLoading && sorted.length === 0 ? (
           <LoadingState />
-        ) : agents.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <EmptyState />
         ) : (
-          agents.map((a) => (
+          sorted.map((a) => (
             <Fragment key={a.address}>
               <AgentRow agent={a} />
               <AgentCard agent={a} />
