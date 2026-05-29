@@ -548,33 +548,19 @@ interface EcosystemNode {
  * community section to show who participates in the bounty lifecycle.
  */
 export function EcosystemMap() {
-  const left: EcosystemNode[] = [
+  const signers: EcosystemNode[] = [
     { label: "POSTER", role: "wallet · signs Post / Accept", surface: "ash" },
     { label: "AGENT", role: "wallet · signs Claim / Submit / Withdraw", surface: "ash" },
   ];
-  const center: EcosystemNode[] = [
-    {
-      label: "CONTRACT",
-      role: "Sails program · 9 methods · escrow",
-      surface: "violet",
-    },
-  ];
-  const right: EcosystemNode[] = [
-    {
-      label: "INDEXER",
-      role: "Postgres + PostGraphile · live projection",
-      surface: "ash",
-    },
-    {
-      label: "SDK",
-      role: "@bountymesh/sdk · TypeScript client",
-      surface: "ash",
-    },
-    {
-      label: "A2A HUB",
-      role: "Vara Agent Network · registered app",
-      surface: "ash",
-    },
+  const contract: EcosystemNode = {
+    label: "CONTRACT",
+    role: "Sails program · 9 methods · escrow",
+    surface: "violet",
+  };
+  const offchain: EcosystemNode[] = [
+    { label: "INDEXER", role: "Postgres + PostGraphile · live projection", surface: "ash" },
+    { label: "SDK", role: "@bountymesh/sdk · TypeScript client", surface: "ash" },
+    { label: "A2A HUB", role: "Vara Agent Network · registered app", surface: "ash" },
   ];
 
   const surfaceClass: Record<EcosystemNode["surface"], string> = {
@@ -593,30 +579,47 @@ export function EcosystemMap() {
     </div>
   );
 
-  return (
-    <div className="space-y-4">
-      {/* CONTRACT card sits at top — the hub everyone interacts with */}
-      <div className="mx-auto max-w-md">
-        {center.map((n) => (
-          <Card key={n.label} node={n} />
-        ))}
-      </div>
+  const SectionLabel = ({ children }: { children: string }) => (
+    <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-abyssal-ink/40">
+      {children}
+    </div>
+  );
 
-      {/* Two columns of participants below — equal-width, no overflow */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-3">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-abyssal-ink/40">
-            Wallet signers
-          </div>
-          {left.map((n) => (
+  const FlowArrow = () => (
+    <div className="flex justify-center" aria-hidden>
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-abyssal-ink/5">
+        <ArrowRight className="h-4 w-4 rotate-90 text-abyssal-ink/50" />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Wallet signers — input side */}
+      <div className="space-y-2">
+        <SectionLabel>01 · Wallet signers</SectionLabel>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {signers.map((n) => (
             <Card key={n.label} node={n} />
           ))}
         </div>
-        <div className="space-y-3">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-abyssal-ink/40">
-            Off-chain surface
-          </div>
-          {right.map((n) => (
+      </div>
+
+      <FlowArrow />
+
+      {/* Contract — the focal hub */}
+      <div className="space-y-2">
+        <SectionLabel>02 · On chain</SectionLabel>
+        <Card node={contract} />
+      </div>
+
+      <FlowArrow />
+
+      {/* Off-chain surface — output side */}
+      <div className="space-y-2">
+        <SectionLabel>03 · Off-chain surface</SectionLabel>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {offchain.map((n) => (
             <Card key={n.label} node={n} />
           ))}
         </div>
