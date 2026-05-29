@@ -1,5 +1,5 @@
 /**
- * Phase 3 indexer entry point.
+ * Indexer entry point.
  *
  * Boot sequence per D4:
  *   Stage 0: load config, validate env, install signal handlers

@@ -67,9 +67,9 @@ export async function processWithdraw(
         completed_at: new Date().toISOString(),
         tx_hashes: {
           submit: entry.submit_tx_hash,
-          // claim/post/accept hashes aren't carried on the pending entry
-          // (P3.7b's Main FSM doesn't persist them). Post-MVP enrichment
-          // can add them to PendingAcceptEntry if richer history matters.
+          // claim/post/accept hashes aren't carried on the pending entry —
+          // the Main FSM doesn't persist them. Future enrichment can add
+          // them to PendingAcceptEntry if richer history matters.
           withdraw: result.txHash,
         },
         envelope_sha256: entry.envelope_sha256,

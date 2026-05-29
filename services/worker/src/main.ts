@@ -1,11 +1,10 @@
 /**
- * Worker entry point (P3.9a).
+ * Worker entry point.
  *
- * Replaces the P3.1 stub. Boots every subsystem via the 7-stage orchestrator,
- * installs SIGTERM/SIGINT handlers (idempotent — second signal during
- * shutdown is logged + ignored), keepAlive interval, explicit process.exit(0)
- * after shutdown completes (don't trust event-loop drain — pino transports
- * may keep handles open).
+ * Boots every subsystem via the 7-stage orchestrator, installs SIGTERM/SIGINT
+ * handlers (idempotent — second signal during shutdown is logged + ignored),
+ * keepAlive interval, explicit process.exit(0) after shutdown completes (don't
+ * trust event-loop drain — pino transports may keep handles open).
  */
 
 import pino from 'pino';
@@ -31,8 +30,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Keep-alive (P3.1 lock). Defensive across subsystem WS handles —
-  // setInterval guarantees the loop stays alive between events.
+  // Keep-alive. Defensive across subsystem WS handles — setInterval guarantees
+  // the loop stays alive between events.
   const keepAlive = setInterval(() => {
     /* heartbeat noop */
   }, 1 << 30);

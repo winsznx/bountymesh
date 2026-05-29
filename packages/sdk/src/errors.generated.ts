@@ -19,7 +19,11 @@ export type BountyMeshError =
   | 'BountyNotAccepted'
   | 'AlreadyWithdrawn'
   | 'Unauthorized'
-  | 'ZeroHashRejected';
+  | 'ZeroHashRejected'
+  | 'DeadlineNotReached'
+  | 'NoDeadlineSet'
+  | 'BountyAlreadyTerminal'
+  | 'ReasonTooLong';
 
 export type Track = 'Services' | 'Social' | 'Economy' | 'Open';
 
@@ -41,6 +45,10 @@ export const ALL_BOUNTYMESH_ERRORS: readonly BountyMeshError[] = [
   'AlreadyWithdrawn',
   'Unauthorized',
   'ZeroHashRejected',
+  'DeadlineNotReached',
+  'NoDeadlineSet',
+  'BountyAlreadyTerminal',
+  'ReasonTooLong',
 ] as const;
 
 export const ALL_TRACKS: readonly Track[] = ['Services', 'Social', 'Economy', 'Open'] as const;

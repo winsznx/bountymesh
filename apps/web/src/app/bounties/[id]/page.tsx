@@ -4,11 +4,12 @@ import { use } from "react";
 import Link from "next/link";
 import { useBounty } from "@/lib/queries/useBounty";
 import { useBountyEvents } from "@/lib/queries/useBountyEvents";
+import { useChainHead } from "@/lib/queries/useChainHead";
 import { BountyHeader } from "@/components/bounty/BountyHeader";
 import { BountyAcceptanceCriteria } from "@/components/bounty/BountyAcceptanceCriteria";
 import { BountyEventTimeline } from "@/components/bounty/BountyEventTimeline";
 import { EnvelopeViewer } from "@/components/bounty/EnvelopeViewer";
-import { AcceptSubmissionButton } from "@/components/bounty/AcceptSubmissionButton";
+import { BountyActionButtons } from "@/components/bounty/BountyActionButtons";
 
 const ENVELOPE_STATES = new Set(["Submitted", "Accepted", "Withdrawn"]);
 
@@ -28,6 +29,7 @@ export default function BountyDetailPage({
 
   const { bounty, isLoading: bountyLoading, error: bountyError } = useBounty(id);
   const { events, isLoading: eventsLoading, error: eventsError } = useBountyEvents(id);
+  const head = useChainHead();
 
   if (id === null) return <NotFound idStr={idStr} reason="invalid" />;
 
@@ -35,7 +37,7 @@ export default function BountyDetailPage({
   const error = bountyError ?? eventsError;
 
   return (
-    <main className="mx-auto max-w-5xl space-y-10 p-8">
+    <main className="mx-auto w-full max-w-5xl space-y-10 px-6 py-10">
       {isLoading ? (
         <LoadingState />
       ) : error ? (
@@ -45,7 +47,10 @@ export default function BountyDetailPage({
       ) : (
         <>
           <BountyHeader bounty={bounty} />
-          <AcceptSubmissionButton bounty={bounty} />
+          <BountyActionButtons
+            bounty={bounty}
+            currentBlock={head?.head ?? null}
+          />
           <BountyAcceptanceCriteria bounty={bounty} />
           <BountyEventTimeline events={events} />
           {ENVELOPE_STATES.has(bounty.status) && (
@@ -60,9 +65,9 @@ export default function BountyDetailPage({
 function LoadingState() {
   return (
     <div className="space-y-6">
-      <div className="h-6 w-32 animate-pulse rounded-sm bg-slate-800" />
-      <div className="h-10 w-2/3 animate-pulse rounded-sm bg-slate-800" />
-      <div className="h-32 animate-pulse rounded-md bg-slate-800/40" />
+      <div className="h-6 w-32 animate-pulse rounded-sm bg-ash-white" />
+      <div className="h-10 w-2/3 animate-pulse rounded-sm bg-ash-white" />
+      <div className="h-32 animate-pulse rounded-card bg-ash-white" />
     </div>
   );
 }
@@ -70,15 +75,18 @@ function LoadingState() {
 function NotFound({ idStr, reason }: { idStr: string; reason: "invalid" | "not-found" }) {
   return (
     <div className="space-y-4 py-12 text-center">
-      <h1 className="text-xl font-semibold text-slate-200">
+      <h1 className="font-display text-heading tracking-heading text-abyssal-ink">
         {reason === "invalid" ? "Invalid bounty ID" : `Bounty #${idStr} doesn't exist`}
       </h1>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-abyssal-ink/60">
         {reason === "invalid"
           ? `"${idStr}" is not a valid bounty ID.`
           : "This bounty isn't on this indexer."}
       </p>
-      <Link href="/bounties" className="inline-block text-sm text-cyan-400 hover:text-cyan-300">
+      <Link
+        href="/bounties"
+        className="inline-block text-sm font-medium text-digital-orange transition-colors hover:text-abyssal-ink"
+      >
         ← Back to bounties
       </Link>
     </div>
@@ -88,8 +96,10 @@ function NotFound({ idStr, reason }: { idStr: string; reason: "invalid" | "not-f
 function ErrorState({ message }: { message: string }) {
   return (
     <div className="space-y-3 py-12 text-center">
-      <h1 className="text-xl font-semibold text-red-400">Couldn&apos;t reach indexer</h1>
-      <p className="font-mono text-xs text-slate-500">{message}</p>
+      <h1 className="font-display text-heading tracking-heading text-digital-orange">
+        Couldn&apos;t reach indexer
+      </h1>
+      <p className="font-mono text-xs text-abyssal-ink/60">{message}</p>
     </div>
   );
 }

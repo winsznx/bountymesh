@@ -18,7 +18,7 @@ import { BountyMeshClient } from "../node_modules/@bountymesh/sdk/dist/index.js"
 
 const WS_URL = "wss://rpc.vara.network";
 const PROGRAM_ID =
-  "0x668351734836b537e3187a8344ef2b9d7eacd850dbd8ad9cb119e681e068c39b";
+  "0xfa09abea4ac2de874bc115cfcfd0992e07636ee9f74e62a21b3750fd6f218886";
 const KEYSTORE_PATH = resolve(homedir(), ".vara-wallet/wallets/winsznx.json");
 
 const VARA = 1_000_000_000_000n;

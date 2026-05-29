@@ -1,0 +1,185 @@
+export const metadata = {
+  title: "Errors",
+  description: "17 typed error variants. SCALE-stable order. Each variant cross-referenced to the methods that can return it.",
+};
+
+# Errors
+
+Every BountyMesh method returns `Result<T, Error>`. There are 17 typed variants in the `Error` enum. All are declared at deploy time; new variants would shift discriminants and break SDK consumers with cached IDL.
+
+```rust
+pub enum Error {
+    SelfLoop,
+    MarketPaused,
+    RewardBelowMinimum,
+    InsufficientPayment,
+    TitleTooLong,
+    DescriptionTooLong,
+    AcceptanceTooLong,
+    PayloadTooLong,
+    IdSpaceExhausted,
+    BountyNotFound,
+    BountyNotOpen,
+    BountyNotClaimed,
+    BountyNotSubmitted,
+    BountyNotAccepted,
+    AlreadyWithdrawn,
+    Unauthorized,
+    ZeroHashRejected,
+}
+```
+
+## Variant reference
+
+### Anti-cheat
+
+<ParamTable>
+  <Param name="SelfLoop" type="Error">
+    `msg::source() == exec::program_id()`. The program cannot call itself. Returned by every method as the first guard. Defensive; not reachable from any real user flow.
+  </Param>
+</ParamTable>
+
+### Operator config
+
+<ParamTable>
+  <Param name="MarketPaused" type="Error">
+    `config.paused == true`. Operator-controlled kill switch. Returned by every method as the second guard.
+  </Param>
+</ParamTable>
+
+### Post-specific
+
+<ParamTable>
+  <Param name="RewardBelowMinimum" type="Error">
+    `reward < config.min_reward`. Mainnet floor is 0.5 VARA (500_000_000_000 atomic). Returned by Post.
+  </Param>
+  <Param name="InsufficientPayment" type="Error">
+    `msg::value() < reward`. Caller didn't attach enough VARA. Returned by Post.
+  </Param>
+  <Param name="TitleTooLong" type="Error">
+    `title.len() > 200`. Returned by Post.
+  </Param>
+  <Param name="DescriptionTooLong" type="Error">
+    `description.len() > 2000`. Returned by Post.
+  </Param>
+  <Param name="AcceptanceTooLong" type="Error">
+    `acceptance.len() > 1000`. Returned by Post.
+  </Param>
+  <Param name="IdSpaceExhausted" type="Error">
+    `next_id.checked_add(1)` overflowed `u64::MAX`. Unreachable at any realistic scale. Returned by Post.
+  </Param>
+</ParamTable>
+
+### Submit-specific
+
+<ParamTable>
+  <Param name="PayloadTooLong" type="Error">
+    `result_payload.len() > 5000`. Returned by Submit.
+  </Param>
+  <Param name="ZeroHashRejected" type="Error">
+    `result_hash == H256::zero()`. Catches accidentally-uninitialized hashes. Returned by Submit.
+  </Param>
+</ParamTable>
+
+### State-transition guards
+
+<ParamTable>
+  <Param name="BountyNotFound" type="Error">
+    `id` doesn't exist in `bounties`. Returned by Claim, Submit, Accept, Withdraw.
+  </Param>
+  <Param name="BountyNotOpen" type="Error">
+    Caller tried to claim a bounty whose status is not Open. Returned by Claim.
+  </Param>
+  <Param name="BountyNotClaimed" type="Error">
+    Caller tried to submit against a bounty whose status is not Claimed. Returned by Submit.
+  </Param>
+  <Param name="BountyNotSubmitted" type="Error">
+    Caller tried to accept a bounty whose status is not Submitted. Returned by Accept.
+  </Param>
+  <Param name="BountyNotAccepted" type="Error">
+    Caller tried to withdraw from a bounty whose status is not Accepted. Returned by Withdraw.
+  </Param>
+</ParamTable>
+
+### Authorization
+
+<ParamTable>
+  <Param name="Unauthorized" type="Error">
+    Caller's `msg::source()` doesn't match the expected actor. Returned by:
+    - Submit when caller != bounty.worker
+    - Accept when caller != bounty.poster
+    - Withdraw when caller != bounty.worker
+  </Param>
+</ParamTable>
+
+### Idempotency
+
+<ParamTable>
+  <Param name="AlreadyWithdrawn" type="Error">
+    `bounty.withdrawn == true`. The worker already pulled the reward. Returned by Withdraw.
+  </Param>
+</ParamTable>
+
+## Per-method error matrix
+
+| Error | Post | Claim | Submit | Accept | Withdraw |
+| --- | :-: | :-: | :-: | :-: | :-: |
+| `SelfLoop` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `MarketPaused` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `RewardBelowMinimum` | ✓ | – | – | – | – |
+| `InsufficientPayment` | ✓ | – | – | – | – |
+| `TitleTooLong` | ✓ | – | – | – | – |
+| `DescriptionTooLong` | ✓ | – | – | – | – |
+| `AcceptanceTooLong` | ✓ | – | – | – | – |
+| `IdSpaceExhausted` | ✓ | – | – | – | – |
+| `BountyNotFound` | – | ✓ | ✓ | ✓ | ✓ |
+| `BountyNotOpen` | – | ✓ | – | – | – |
+| `BountyNotClaimed` | – | – | ✓ | – | – |
+| `BountyNotSubmitted` | – | – | – | ✓ | – |
+| `BountyNotAccepted` | – | – | – | – | ✓ |
+| `Unauthorized` | – | – | ✓ | ✓ | ✓ |
+| `ZeroHashRejected` | – | – | ✓ | – | – |
+| `PayloadTooLong` | – | – | ✓ | – | – |
+| `AlreadyWithdrawn` | – | – | – | – | ✓ |
+
+## SDK error handling pattern
+
+The generated `BountyMeshError` union is exported from `@bountymesh/sdk/errors`. Use `'ok' in reply` for discrimination:
+
+```ts
+const result = await sdk.post(signer, params);
+
+if ('ok' in result.reply) {
+  console.log("bounty id", result.reply.ok);
+} else {
+  switch (result.reply.err) {
+    case 'RewardBelowMinimum':
+      console.error("bump reward above 0.5 VARA");
+      break;
+    case 'InsufficientPayment':
+      console.error("attach more value");
+      break;
+    default:
+      console.error("unexpected:", result.reply.err);
+  }
+}
+```
+
+The error type is **generated from the IDL snapshot** by `scripts/generate-errors.ts`. Drift caught by `make sdk-check-codegen-drift`. Never hand-edit `src/errors.generated.ts`. See [SDK reference](/docs/reference/sdk).
+
+## Refund posture on every Err
+
+**All Err branches refund the attached `msg::value()` via `CommandReply::with_value(value)`.** This is the canonical refund-correctness primitive — see [Anti-cheat](/docs/concepts/anti-cheat#refund-correctness).
+
+`msg::send_bytes` is NOT used on Err branches. In sails-rs 0.10, outbound messages only flush on successful execution; using `msg::send_bytes` for Err refunds would silently drop the value into the program balance with no on-chain record. The reply pattern is atomic with the Err return.
+
+## Source
+
+- [`programs/bountymesh/app/src/errors.rs`](https://github.com/winsznx/bountymesh/blob/main/programs/bountymesh/app/src/errors.rs) — the enum
+- [`programs/bountymesh/app/src/service.rs`](https://github.com/winsznx/bountymesh/blob/main/programs/bountymesh/app/src/service.rs) — every guard, inline-documented
+
+## Next steps
+
+- [Anti-cheat](/docs/concepts/anti-cheat) — refund correctness, self-loop, refund posture
+- [SDK reference](/docs/reference/sdk) — generated error types
+- [Events](/docs/contract/events) — emitted variants

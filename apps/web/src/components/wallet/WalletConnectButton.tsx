@@ -32,9 +32,9 @@ export function WalletConnectButton() {
         onClick={() => void connect()}
         disabled={status === "connecting"}
         title={error ?? undefined}
-        className="inline-flex items-center gap-2 rounded-md border border-cyan-400/40 px-3 py-1.5 text-xs font-medium text-cyan-400 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-pill border-2 border-abyssal-ink bg-transparent px-5 py-2 text-sm font-medium text-abyssal-ink transition-colors hover:bg-abyssal-ink hover:text-pure-white disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <Wallet className="h-3 w-3" aria-hidden />
+        <Wallet className="h-4 w-4" aria-hidden />
         {status === "connecting" ? "Connecting…" : "Connect wallet"}
       </button>
     );
@@ -50,9 +50,9 @@ export function WalletConnectButton() {
         aria-expanded={open}
         aria-label={`Wallet menu for ${truncated}`}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 font-mono text-xs text-slate-200 hover:border-slate-600"
+        className="inline-flex items-center gap-2 rounded-pill bg-digital-orange px-5 py-2 font-mono text-sm font-medium text-pure-white transition-opacity hover:opacity-90"
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+        <span className="h-1.5 w-1.5 rounded-full bg-pure-white" aria-hidden />
         {truncated}
         <ChevronDown
           className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
@@ -63,11 +63,15 @@ export function WalletConnectButton() {
         <div
           role="menu"
           aria-label="Wallet actions"
-          className="absolute right-0 z-10 mt-1 w-56 overflow-hidden rounded-md border border-slate-700 bg-slate-900 shadow-lg"
+          className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-card border border-abyssal-ink/10 bg-ash-white shadow-lg"
         >
-          <div className="border-b border-slate-800 px-3 py-2 text-xs text-slate-500">
+          <div className="border-b border-abyssal-ink/10 px-4 py-3 text-xs text-abyssal-ink/60">
             <div>{extensionName ?? "extension"}</div>
-            {account.name && <div className="mt-0.5 text-slate-300">{account.name}</div>}
+            {account.name && (
+              <div className="mt-0.5 font-medium text-abyssal-ink">
+                {account.name}
+              </div>
+            )}
           </div>
           <button
             type="button"
@@ -76,9 +80,9 @@ export function WalletConnectButton() {
               disconnect();
               setOpen(false);
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-800"
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-abyssal-ink transition-colors hover:bg-basalt-canvas"
           >
-            <LogOut className="h-3 w-3" aria-hidden />
+            <LogOut className="h-4 w-4" aria-hidden />
             Disconnect
           </button>
         </div>

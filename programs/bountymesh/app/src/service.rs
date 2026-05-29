@@ -10,7 +10,8 @@ use crate::errors::Error;
 use crate::events::Event;
 use crate::state::{
     Bounty, BountyId, BountyMeshState, BountyStatus, TrackEnum,
-    MAX_ACCEPTANCE_LEN, MAX_DESCRIPTION_LEN, MAX_RESULT_PAYLOAD_LEN, MAX_TITLE_LEN,
+    MAX_ACCEPTANCE_LEN, MAX_DESCRIPTION_LEN, MAX_REJECTION_REASON_LEN,
+    MAX_RESULT_PAYLOAD_LEN, MAX_TITLE_LEN,
 };
 
 pub struct BountyService<'a> {
@@ -111,6 +112,12 @@ impl BountyService<'_> {
             result_payload: None,
             result_hash: None,
             withdrawn: false,
+            // v2 fields default to None at Post-time
+            cancelled_at: None,
+            rejected_at: None,
+            timed_out_at: None,
+            revoked_at: None,
+            rejection_reason: None,
         };
 
         state.bounties.insert(id, bounty);
@@ -448,5 +455,333 @@ impl BountyService<'_> {
             .checked_add(event_amount)
             .expect("withdraw value+reward overflow — impossible at any realistic scale");
         CommandReply::new(Ok(())).with_value(total)
+    }
+
+    // ============================================================
+    // v2 transition methods — Cancel / Reject / Timeout / Revoke
+    // ============================================================
+    //
+    // Each method matches the same defensive shape as v1:
+    //   1. SelfLoop guard first (cheap msg::source() compare)
+    //   2. MarketPaused guard
+    //   3. Existence / status / auth checks in increasing cost order
+    //   4. State mutation (status flip + timestamp + index map move)
+    //   5. drop(state) BEFORE emit_event
+    //   6. emit_event(...)
+    //   7. Return CommandReply::with_value — refund path varies per method
+
+    /// Cancel an Open bounty. Poster-only. Refunds the full escrow + any attached value.
+    ///
+    /// Status: Open → Cancelled (terminal).
+    /// Caller MUST be the original poster.
+    /// Refund: caller == value-target (poster), so `CommandReply::with_value(reward + value)`
+    /// rides on the reply atomically.
+    #[export]
+    pub fn cancel(&mut self, id: BountyId) -> CommandReply<Result<(), Error>> {
+        let value = msg::value();
+        let source = msg::source();
+
+        if source == exec::program_id() {
+            return CommandReply::new(Err(Error::SelfLoop)).with_value(value);
+        }
+
+        if self.state.borrow().config.paused {
+            return CommandReply::new(Err(Error::MarketPaused)).with_value(value);
+        }
+
+        let mut state = self.state.borrow_mut();
+
+        let Some(bounty) = state.bounties.get_mut(&id) else {
+            return CommandReply::new(Err(Error::BountyNotFound)).with_value(value);
+        };
+
+        if bounty.status != BountyStatus::Open {
+            return CommandReply::new(Err(Error::BountyNotOpen)).with_value(value);
+        }
+
+        if source != bounty.poster {
+            return CommandReply::new(Err(Error::Unauthorized)).with_value(value);
+        }
+
+        let cancelled_at = exec::block_height();
+        let event_refunded = bounty.reward;
+        let event_by = source;
+
+        bounty.status = BountyStatus::Cancelled;
+        bounty.cancelled_at = Some(cancelled_at);
+
+        // Move out of Open list into Cancelled list.
+        if let Some(open_list) = state.bounties_by_status.get_mut(&BountyStatus::Open) {
+            open_list.retain(|x| *x != id);
+        }
+        state
+            .bounties_by_status
+            .entry(BountyStatus::Cancelled)
+            .or_default()
+            .push(id);
+
+        drop(state);
+
+        self.emit_event(Event::BountyCancelled {
+            id,
+            by: event_by,
+            refunded: event_refunded,
+            cancelled_at,
+        })
+        .expect("event emission must succeed");
+
+        // Combined delivery: full escrow refund + defensive refund of attached value.
+        let total = value
+            .checked_add(event_refunded)
+            .expect("cancel value+reward overflow — impossible at any realistic scale");
+        CommandReply::new(Ok(())).with_value(total)
+    }
+
+    /// Reject a Submitted bounty. Poster-only. Refunds the full escrow + any attached value.
+    ///
+    /// Status: Submitted → Rejected (terminal).
+    /// Caller MUST be the original poster.
+    /// The optional `reason` (≤ 500 chars) is persisted on-chain for indexer visibility.
+    /// Refund: same primitive as Cancel — caller == value-target (poster).
+    #[export]
+    pub fn reject(
+        &mut self,
+        id: BountyId,
+        reason: Option<String>,
+    ) -> CommandReply<Result<(), Error>> {
+        let value = msg::value();
+        let source = msg::source();
+
+        if source == exec::program_id() {
+            return CommandReply::new(Err(Error::SelfLoop)).with_value(value);
+        }
+
+        if self.state.borrow().config.paused {
+            return CommandReply::new(Err(Error::MarketPaused)).with_value(value);
+        }
+
+        if let Some(r) = &reason {
+            if r.len() > MAX_REJECTION_REASON_LEN {
+                return CommandReply::new(Err(Error::ReasonTooLong)).with_value(value);
+            }
+        }
+
+        let mut state = self.state.borrow_mut();
+
+        let Some(bounty) = state.bounties.get_mut(&id) else {
+            return CommandReply::new(Err(Error::BountyNotFound)).with_value(value);
+        };
+
+        if bounty.status != BountyStatus::Submitted {
+            return CommandReply::new(Err(Error::BountyNotSubmitted)).with_value(value);
+        }
+
+        if source != bounty.poster {
+            return CommandReply::new(Err(Error::Unauthorized)).with_value(value);
+        }
+
+        let rejected_at = exec::block_height();
+        let event_by = source;
+        let event_worker = bounty
+            .worker
+            .expect("status==Submitted implies worker.is_some() by Claim invariant");
+        let event_reward = bounty.reward;
+        let event_reason = reason.clone();
+
+        bounty.status = BountyStatus::Rejected;
+        bounty.rejected_at = Some(rejected_at);
+        bounty.rejection_reason = reason;
+
+        if let Some(sub_list) = state.bounties_by_status.get_mut(&BountyStatus::Submitted) {
+            sub_list.retain(|x| *x != id);
+        }
+        state
+            .bounties_by_status
+            .entry(BountyStatus::Rejected)
+            .or_default()
+            .push(id);
+
+        drop(state);
+
+        self.emit_event(Event::BountyRejected {
+            id,
+            by: event_by,
+            worker: event_worker,
+            reason: event_reason,
+            rejected_at,
+        })
+        .expect("event emission must succeed");
+
+        // Full escrow refund to poster + defensive refund of attached value.
+        let total = value
+            .checked_add(event_reward)
+            .expect("reject value+reward overflow — impossible at any realistic scale");
+        CommandReply::new(Ok(())).with_value(total)
+    }
+
+    /// Permissionless watchdog: force a stuck bounty into TimedOut after deadline.
+    ///
+    /// Status: Open | Claimed | Submitted → TimedOut (terminal).
+    /// Caller is anyone — this is the canonical permissionless watchdog pattern.
+    /// Deadline MUST be set AND `exec::block_height() > deadline`.
+    /// Refund: caller ≠ value-target (poster). Per the primitive rule, escrow is
+    /// pushed to poster's mailbox via `msg::send_bytes(poster, [], reward)`;
+    /// caller's attached value rides back on the reply via `with_value(value)`.
+    /// This is the FIRST `msg::send_bytes` invocation in the contract surface.
+    #[export]
+    pub fn timeout(&mut self, id: BountyId) -> CommandReply<Result<(), Error>> {
+        let value = msg::value();
+        let source = msg::source();
+
+        if source == exec::program_id() {
+            return CommandReply::new(Err(Error::SelfLoop)).with_value(value);
+        }
+
+        if self.state.borrow().config.paused {
+            return CommandReply::new(Err(Error::MarketPaused)).with_value(value);
+        }
+
+        let mut state = self.state.borrow_mut();
+
+        let Some(bounty) = state.bounties.get_mut(&id) else {
+            return CommandReply::new(Err(Error::BountyNotFound)).with_value(value);
+        };
+
+        // Only non-terminal pre-Accept statuses are timeout-eligible. Accepted
+        // is a happy-path settlement awaiting worker Withdraw; the four v2
+        // terminal statuses (Cancelled/Rejected/TimedOut/Revoked) have already
+        // closed the bounty.
+        let prior_status = bounty.status;
+        match prior_status {
+            BountyStatus::Open | BountyStatus::Claimed | BountyStatus::Submitted => {}
+            _ => {
+                return CommandReply::new(Err(Error::BountyAlreadyTerminal)).with_value(value);
+            }
+        }
+
+        let Some(deadline) = bounty.deadline else {
+            return CommandReply::new(Err(Error::NoDeadlineSet)).with_value(value);
+        };
+
+        let current_block = exec::block_height();
+        if current_block <= deadline {
+            return CommandReply::new(Err(Error::DeadlineNotReached)).with_value(value);
+        }
+
+        let timed_out_at = current_block;
+        let event_called_by = source;
+        let event_poster = bounty.poster;
+        let event_reward = bounty.reward;
+
+        bounty.status = BountyStatus::TimedOut;
+        bounty.timed_out_at = Some(timed_out_at);
+
+        if let Some(prior_list) = state.bounties_by_status.get_mut(&prior_status) {
+            prior_list.retain(|x| *x != id);
+        }
+        state
+            .bounties_by_status
+            .entry(BountyStatus::TimedOut)
+            .or_default()
+            .push(id);
+
+        drop(state);
+
+        self.emit_event(Event::BountyTimedOut {
+            id,
+            last_state: prior_status,
+            called_by: event_called_by,
+            refunded_to: event_poster,
+            timed_out_at,
+        })
+        .expect("event emission must succeed");
+
+        // Push escrow to poster's mailbox — caller ≠ target. Poster (or their
+        // wallet) must mailbox_claim to credit the balance.
+        // .expect documents the invariant: the runtime only fails send_bytes
+        // for OOM or quota exhaustion, neither reachable at hackathon scale.
+        msg::send_bytes(event_poster, [], event_reward)
+            .expect("timeout escrow push to poster must succeed");
+
+        // Defensive refund of caller's attached value via the reply.
+        CommandReply::new(Ok(())).with_value(value)
+    }
+
+    /// Owner emergency: forcibly Revoke a bounty in any state.
+    ///
+    /// Caller MUST be `state.owner` (set immutably at construction).
+    /// If bounty has not been withdrawn, escrow is pushed to the original poster.
+    /// If bounty has already been withdrawn (Accepted + withdrawn=true), no
+    /// escrow movement — status flip only.
+    /// Refund: caller (owner) ≠ value-target (poster). Same primitive as Timeout:
+    /// `msg::send_bytes` to poster + `with_value(value)` reply refund.
+    #[export]
+    pub fn revoke(&mut self, id: BountyId) -> CommandReply<Result<(), Error>> {
+        let value = msg::value();
+        let source = msg::source();
+
+        if source == exec::program_id() {
+            return CommandReply::new(Err(Error::SelfLoop)).with_value(value);
+        }
+
+        if self.state.borrow().config.paused {
+            return CommandReply::new(Err(Error::MarketPaused)).with_value(value);
+        }
+
+        // Owner check first — Revoke is owner-only by design.
+        if source != self.state.borrow().owner {
+            return CommandReply::new(Err(Error::Unauthorized)).with_value(value);
+        }
+
+        let mut state = self.state.borrow_mut();
+
+        let Some(bounty) = state.bounties.get_mut(&id) else {
+            return CommandReply::new(Err(Error::BountyNotFound)).with_value(value);
+        };
+
+        // Idempotency: a second Revoke on the same bounty is a no-op error.
+        if bounty.status == BountyStatus::Revoked {
+            return CommandReply::new(Err(Error::BountyAlreadyTerminal)).with_value(value);
+        }
+
+        let revoked_at = exec::block_height();
+        let prior_status = bounty.status;
+        let event_poster = bounty.poster;
+        let event_by = source;
+        // Refund the escrow only if it hasn't already left the contract.
+        let escrow_to_refund = if bounty.withdrawn {
+            0u128
+        } else {
+            bounty.reward
+        };
+
+        bounty.status = BountyStatus::Revoked;
+        bounty.revoked_at = Some(revoked_at);
+
+        if let Some(prior_list) = state.bounties_by_status.get_mut(&prior_status) {
+            prior_list.retain(|x| *x != id);
+        }
+        state
+            .bounties_by_status
+            .entry(BountyStatus::Revoked)
+            .or_default()
+            .push(id);
+
+        drop(state);
+
+        self.emit_event(Event::BountyRevoked {
+            id,
+            by: event_by,
+            refunded_to: event_poster,
+            revoked_at,
+        })
+        .expect("event emission must succeed");
+
+        if escrow_to_refund > 0 {
+            msg::send_bytes(event_poster, [], escrow_to_refund)
+                .expect("revoke escrow push to poster must succeed");
+        }
+
+        CommandReply::new(Ok(())).with_value(value)
     }
 }

@@ -3,9 +3,8 @@
  *
  * Copied from services/worker/src/envelope/canonical-json.ts. Identical
  * byte-output contract — the worker hashes one form, the frontend recomputes
- * the same form, the verification dance produces matching hex.
- *
- * Phase 7 polish item #10: move into @bountymesh/sdk as a public export so
+ * the same form, the verification dance produces matching hex. Eventually the
+ * canonical-json helper will move into @bountymesh/sdk as a public export so
  * this duplication can go away.
  *
  * Rules:

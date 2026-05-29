@@ -94,9 +94,8 @@ export async function loadFromKeystore(explicitPath?: string): Promise<KeyringPa
 
   const keyring = new Keyring({ type: 'sr25519' });
   try {
-    // v1: unencrypted keystores only (operator wallet pattern per
-    // AGENT_PROGRESS Phase 1). addFromJson's optional password arg
-    // accepts a password if Phase 6 introduces encryption.
+    // v1: unencrypted keystores only. addFromJson's optional password arg
+    // accepts a password if encryption is later introduced.
     const pair = keyring.addFromJson(json);
     pair.unlock('');
     return pair;

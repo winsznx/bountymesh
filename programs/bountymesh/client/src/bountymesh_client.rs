@@ -66,6 +66,13 @@ pub mod bounty_service {
         ///
         /// Accept is not payable. Any attached value is refunded defensively.
         fn accept(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Accept, Self::Env>;
+        /// Cancel an Open bounty. Poster-only. Refunds the full escrow + any attached value.
+        ///
+        /// Status: Open → Cancelled (terminal).
+        /// Caller MUST be the original poster.
+        /// Refund: caller == value-target (poster), so `CommandReply::with_value(reward + value)`
+        /// rides on the reply atomically.
+        fn cancel(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Cancel, Self::Env>;
         /// Claim an Open bounty. First wallet wins; second caller gets Err(BountyNotOpen).
         ///
         /// Claim is not payable. Any attached value is refunded defensively via
@@ -86,6 +93,26 @@ pub mod bounty_service {
             deadline: Option<u32>,
             track: TrackEnum,
         ) -> sails_rs::client::PendingCall<io::Post, Self::Env>;
+        /// Reject a Submitted bounty. Poster-only. Refunds the full escrow + any attached value.
+        ///
+        /// Status: Submitted → Rejected (terminal).
+        /// Caller MUST be the original poster.
+        /// The optional `reason` (≤ 500 chars) is persisted on-chain for indexer visibility.
+        /// Refund: same primitive as Cancel — caller == value-target (poster).
+        fn reject(
+            &mut self,
+            id: u64,
+            reason: Option<String>,
+        ) -> sails_rs::client::PendingCall<io::Reject, Self::Env>;
+        /// Owner emergency: forcibly Revoke a bounty in any state.
+        ///
+        /// Caller MUST be `state.owner` (set immutably at construction).
+        /// If bounty has not been withdrawn, escrow is pushed to the original poster.
+        /// If bounty has already been withdrawn (Accepted + withdrawn=true), no
+        /// escrow movement — status flip only.
+        /// Refund: caller (owner) ≠ value-target (poster). Same primitive as Timeout:
+        /// `msg::send_bytes` to poster + `with_value(value)` reply refund.
+        fn revoke(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Revoke, Self::Env>;
         /// Submit the worker's result payload + hash. Status flips Claimed → Submitted.
         ///
         /// Auth: caller must equal bounty.worker.
@@ -100,6 +127,16 @@ pub mod bounty_service {
             result_payload: String,
             result_hash: H256,
         ) -> sails_rs::client::PendingCall<io::Submit, Self::Env>;
+        /// Permissionless watchdog: force a stuck bounty into TimedOut after deadline.
+        ///
+        /// Status: Open | Claimed | Submitted → TimedOut (terminal).
+        /// Caller is anyone — this is the canonical permissionless watchdog pattern.
+        /// Deadline MUST be set AND `exec::block_height() > deadline`.
+        /// Refund: caller ≠ value-target (poster). Per the primitive rule, escrow is
+        /// pushed to poster's mailbox via `msg::send_bytes(poster, [], reward)`;
+        /// caller's attached value rides back on the reply via `with_value(value)`.
+        /// This is the FIRST `msg::send_bytes` invocation in the contract surface.
+        fn timeout(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Timeout, Self::Env>;
         /// Worker pulls the escrowed reward. Two-phase settlement closure.
         ///
         /// Withdraw is the only method that:
@@ -128,6 +165,9 @@ pub mod bounty_service {
         fn accept(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Accept, Self::Env> {
             self.pending_call((id,))
         }
+        fn cancel(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Cancel, Self::Env> {
+            self.pending_call((id,))
+        }
         fn claim(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Claim, Self::Env> {
             self.pending_call((id,))
         }
@@ -142,6 +182,16 @@ pub mod bounty_service {
         ) -> sails_rs::client::PendingCall<io::Post, Self::Env> {
             self.pending_call((title, description, acceptance, reward, deadline, track))
         }
+        fn reject(
+            &mut self,
+            id: u64,
+            reason: Option<String>,
+        ) -> sails_rs::client::PendingCall<io::Reject, Self::Env> {
+            self.pending_call((id, reason))
+        }
+        fn revoke(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Revoke, Self::Env> {
+            self.pending_call((id,))
+        }
         fn submit(
             &mut self,
             id: u64,
@@ -149,6 +199,9 @@ pub mod bounty_service {
             result_hash: H256,
         ) -> sails_rs::client::PendingCall<io::Submit, Self::Env> {
             self.pending_call((id, result_payload, result_hash))
+        }
+        fn timeout(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Timeout, Self::Env> {
+            self.pending_call((id,))
         }
         fn withdraw(&mut self, id: u64) -> sails_rs::client::PendingCall<io::Withdraw, Self::Env> {
             self.pending_call((id,))
@@ -158,9 +211,13 @@ pub mod bounty_service {
     pub mod io {
         use super::*;
         sails_rs::io_struct_impl!(Accept (id: u64) -> Result<(), super::Error>);
+        sails_rs::io_struct_impl!(Cancel (id: u64) -> Result<(), super::Error>);
         sails_rs::io_struct_impl!(Claim (id: u64) -> Result<(), super::Error>);
         sails_rs::io_struct_impl!(Post (title: String, description: String, acceptance: String, reward: u128, deadline: Option<u32>, track: super::TrackEnum) -> Result<u64, super::Error>);
+        sails_rs::io_struct_impl!(Reject (id: u64, reason: Option<String>) -> Result<(), super::Error>);
+        sails_rs::io_struct_impl!(Revoke (id: u64) -> Result<(), super::Error>);
         sails_rs::io_struct_impl!(Submit (id: u64, result_payload: String, result_hash: H256) -> Result<(), super::Error>);
+        sails_rs::io_struct_impl!(Timeout (id: u64) -> Result<(), super::Error>);
         sails_rs::io_struct_impl!(Withdraw (id: u64) -> Result<(), super::Error>);
     }
 
@@ -205,6 +262,32 @@ pub mod bounty_service {
                 amount: u128,
                 withdrawn_at: u32,
             },
+            BountyCancelled {
+                id: u64,
+                by: ActorId,
+                refunded: u128,
+                cancelled_at: u32,
+            },
+            BountyRejected {
+                id: u64,
+                by: ActorId,
+                worker: ActorId,
+                reason: Option<String>,
+                rejected_at: u32,
+            },
+            BountyTimedOut {
+                id: u64,
+                last_state: BountyStatus,
+                called_by: ActorId,
+                refunded_to: ActorId,
+                timed_out_at: u32,
+            },
+            BountyRevoked {
+                id: u64,
+                by: ActorId,
+                refunded_to: ActorId,
+                revoked_at: u32,
+            },
         }
         impl sails_rs::client::Event for BountyServiceEvents {
             const EVENT_NAMES: &'static [Route] = &[
@@ -213,6 +296,10 @@ pub mod bounty_service {
                 "BountySubmitted",
                 "BountyAccepted",
                 "BountyWithdrawn",
+                "BountyCancelled",
+                "BountyRejected",
+                "BountyTimedOut",
+                "BountyRevoked",
             ];
         }
         impl sails_rs::client::ServiceWithEvents for BountyServiceImpl {
@@ -241,6 +328,10 @@ pub enum Error {
     AlreadyWithdrawn,
     Unauthorized,
     ZeroHashRejected,
+    DeadlineNotReached,
+    NoDeadlineSet,
+    BountyAlreadyTerminal,
+    ReasonTooLong,
 }
 #[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
@@ -250,4 +341,17 @@ pub enum TrackEnum {
     Social,
     Economy,
     Open,
+}
+#[derive(PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
+#[codec(crate = sails_rs::scale_codec)]
+#[scale_info(crate = sails_rs::scale_info)]
+pub enum BountyStatus {
+    Open,
+    Claimed,
+    Submitted,
+    Accepted,
+    Rejected,
+    Cancelled,
+    TimedOut,
+    Revoked,
 }

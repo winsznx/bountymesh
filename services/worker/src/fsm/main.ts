@@ -1,24 +1,24 @@
 /**
- * Main FSM orchestrator (P2 §8 / P3.7b).
+ * Main FSM orchestrator.
  *
  * One run(candidate) call brackets a single bounty cycle:
  *   Idle → Claiming → Working → Submitting → Submitted   (happy)
  *   Idle → Claiming → Abandoned                          (claim-err)
  *   Idle → Claiming → Working → Submitting → Abandoned   (submit-err)
  *
- * Crash-resume (discipline P3.7b lock):
+ * Crash-resume:
  *   If workerState.inflight === candidate.id.toString() at entry, the worker
  *   crashed mid-Working in a previous process. Skip Claim (the chain already
  *   has it), propagate crashResumed=true to the adapter, and resume from
- *   Working. The boot resume-orchestrator (future step) feeds the candidate
- *   back to run() — P3.7b only implements DETECTION.
+ *   Working. The boot resume-orchestrator feeds the candidate back to run();
+ *   this FSM only DETECTS the resume.
  *
- * Closure ordering (operator lock #2):
+ * Closure ordering (operator lock):
  *   atomic-write/append FIRST, serializer release SECOND. Every persistence
  *   write (pending_accept on success, history on abandon) commits BEFORE the
- *   serializer is released. If any write throws, the run() throws → the
- *   caller (filter pipeline → P2 §C wrapper) transitions to WaitingForOperator-
- *   Intervention with the serializer still acquired (blocking new claims).
+ *   serializer is released. If any write throws, the run() throws → the caller
+ *   transitions to WaitingForOperatorIntervention with the serializer still
+ *   acquired (blocking new claims).
  */
 
 import { buildEnvelope } from '../envelope/index.js';
@@ -59,8 +59,8 @@ export class MainFsm {
     const bountyIdStr = inflightId.toString();
     const baseFields = { op: 'fsm', candidateId: bountyIdStr };
 
-    // Per-transition structured log line for integration-test observability
-    // (P3.10b discipline 1). One log per state edge.
+    // Per-transition structured log line for integration-test observability.
+    // One log per state edge.
     const transition = (from: string, to: string): void => {
       log.info({ op: 'fsm', event: 'transition', bountyId: bountyIdStr, from, to });
     };
@@ -97,9 +97,9 @@ export class MainFsm {
 
     // ---- WORKING ----
     log.info({ ...baseFields, state: 'Working', crashResumed });
-    // P3.10b discipline I: the crashResumed proof line. Asserted in the
-    // crash-resume integration test (parses second worker's stdout for
-    // op:'adapter' + event:'execute-start' + crashResumed:true).
+    // The crashResumed proof line. Asserted in the crash-resume integration
+    // test (parses second worker's stdout for op:'adapter' + event:
+    // 'execute-start' + crashResumed:true).
     log.info({
       op: 'adapter',
       event: 'execute-start',
@@ -203,10 +203,9 @@ export class MainFsm {
       reason: `submit-err:${errorReason}`,
     });
 
-    // Per operator (d): on Submit-Err the abandoned record carries full
-    // tx_hashes (post + claim) + envelope_sha256 (work product hash, even
-    // though it didn't land on-chain — useful for post-mortem correlation
-    // per P3.7b lock #1).
+    // On Submit-Err the abandoned record carries full tx_hashes (post + claim)
+    // + envelope_sha256 (work product hash, even though it didn't land on-chain
+    // — useful for post-mortem correlation).
     const txHashes: Record<string, `0x${string}`> = {};
     if (candidate.txHash !== null) txHashes.post = candidate.txHash;
     if (claimTxHash) txHashes.claim = claimTxHash;

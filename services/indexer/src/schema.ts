@@ -13,15 +13,15 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * Phase 3 indexer schema — 4 tables.
+ * Indexer schema — 4 tables.
  *
- * Bigint mapping per D5 (over-the-wire contract):
+ * Bigint mapping (over-the-wire contract):
  *   - block heights / timestamps → bigint mode:'number' (safe under 2^53 forever at 6s blocks)
  *   - reward (u128) → numeric(39,0) returned as string by pg driver;
  *     coerced to BigInt at the project.ts boundary, NEVER stored as 'number'
  *
  * PostGraphile auto-derives GraphQL from these tables; readerPool role
- * (pg_readonly) gets SELECT only via docker/init.sql.
+ * (bountymesh_readonly) gets SELECT only via docker/init.sql.
  */
 
 // 1. Append-only event log. Source of truth for the projection.
@@ -45,8 +45,8 @@ export const bountyEvents = pgTable(
 );
 
 // 2. Current-state projection. Updated transactionally with each event insert.
-//    title/description/acceptance are nullable for Phase 3 (Q1 decision (a));
-//    populated post-DiscoveryService or post-BountyPosted-event-extension.
+//    title/description/acceptance are nullable; populated by the BountyPosted
+//    event extension and backfilled by a future DiscoveryService.
 export const bounties = pgTable(
   'bounties',
   {

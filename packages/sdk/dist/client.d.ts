@@ -1,5 +1,5 @@
 import { SailsProgram } from './generated/lib.js';
-import type { BountyAcceptedEvent, BountyAcceptedFilter, BountyClaimedEvent, BountyClaimedFilter, BountyMeshClientOptions, BountyPostedEvent, BountyPostedFilter, BountySubmittedEvent, BountySubmittedFilter, BountyWithdrawnEvent, BountyWithdrawnFilter, PostArgs, TxResult, Unsubscribe } from './types.js';
+import type { BountyAcceptedEvent, BountyAcceptedFilter, BountyCancelledEvent, BountyCancelledFilter, BountyClaimedEvent, BountyClaimedFilter, BountyMeshClientOptions, BountyPostedEvent, BountyPostedFilter, BountyRejectedEvent, BountyRejectedFilter, BountyRevokedEvent, BountyRevokedFilter, BountySubmittedEvent, BountySubmittedFilter, BountyTimedOutEvent, BountyTimedOutFilter, BountyWithdrawnEvent, BountyWithdrawnFilter, PostArgs, TxResult, Unsubscribe } from './types.js';
 /**
  * BountyMeshClient — ergonomic wrapper around the auto-generated sails-js client.
  *
@@ -50,5 +50,37 @@ export declare class BountyMeshClient {
     onBountySubmitted(filter: BountySubmittedFilter | null, cb: (e: BountySubmittedEvent) => void | Promise<void>): Promise<Unsubscribe>;
     onBountyAccepted(filter: BountyAcceptedFilter | null, cb: (e: BountyAcceptedEvent) => void | Promise<void>): Promise<Unsubscribe>;
     onBountyWithdrawn(filter: BountyWithdrawnFilter | null, cb: (e: BountyWithdrawnEvent) => void | Promise<void>): Promise<Unsubscribe>;
+    /**
+     * Cancel an Open bounty. Poster-only. Refunds the full escrow + any
+     * attached value via CommandReply::with_value(reward + value) on the reply.
+     * Status flip: Open → Cancelled (terminal).
+     */
+    cancel(id: bigint): Promise<TxResult<null>>;
+    /**
+     * Reject a Submitted bounty. Poster-only. Optional ≤500-char reason is
+     * persisted on-chain for indexer visibility. Refunds the full escrow.
+     * Status flip: Submitted → Rejected (terminal).
+     */
+    reject(id: bigint, reason?: string | null): Promise<TxResult<null>>;
+    /**
+     * Permissionless watchdog: force a stuck bounty into TimedOut after the
+     * configured deadline block. Requires `bounty.deadline` set AND
+     * `current_block > deadline`. Pushes escrow to poster's mailbox via
+     * `msg::send_bytes(poster, [], reward)` — caller's defensive value rides
+     * back on the reply via `with_value(value)`.
+     * Status flip: {Open|Claimed|Submitted} → TimedOut (terminal).
+     */
+    timeout(id: bigint): Promise<TxResult<null>>;
+    /**
+     * Owner emergency: forcibly Revoke a bounty in any non-Revoked state.
+     * Caller MUST be `state.owner` (set immutably at construction). Non-
+     * withdrawn escrow is pushed to the original poster via `msg::send_bytes`.
+     * Status flip: {any non-Revoked} → Revoked (terminal).
+     */
+    revoke(id: bigint): Promise<TxResult<null>>;
+    onBountyCancelled(filter: BountyCancelledFilter | null, cb: (e: BountyCancelledEvent) => void | Promise<void>): Promise<Unsubscribe>;
+    onBountyRejected(filter: BountyRejectedFilter | null, cb: (e: BountyRejectedEvent) => void | Promise<void>): Promise<Unsubscribe>;
+    onBountyTimedOut(filter: BountyTimedOutFilter | null, cb: (e: BountyTimedOutEvent) => void | Promise<void>): Promise<Unsubscribe>;
+    onBountyRevoked(filter: BountyRevokedFilter | null, cb: (e: BountyRevokedEvent) => void | Promise<void>): Promise<Unsubscribe>;
 }
 //# sourceMappingURL=client.d.ts.map

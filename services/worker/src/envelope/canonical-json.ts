@@ -7,7 +7,7 @@
  *   - Strings JSON-escaped per RFC 8259 (via Node's JSON.stringify).
  *   - Numbers: finite only (NaN/Infinity rejected).
  *   - bigint: rejected — caller MUST .toString() at the type boundary
- *     (matches CLAUDE.md Phase 3 BigInt-boundary rule).
+ *     (matches the CLAUDE.md BigInt-boundary rule).
  *   - undefined: rejected — caller MUST use null explicitly.
  *   - Arrays preserve order (NOT sorted).
  *

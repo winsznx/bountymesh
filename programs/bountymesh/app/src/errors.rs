@@ -1,8 +1,8 @@
-//! Typed error surface — PRD §5.5, locked at 17 variants in Step 4.
+//! Typed error surface — locked variant order.
 //!
-//! All variants ship in 5a even though only ~8 are referenced by Post.
-//! Adding variants later to a SCALE enum risks wire incompatibility with
-//! cached IDL snapshots — defining them upfront keeps the SDK regen clean.
+//! Variants are declared in their final SCALE-discriminant order. New variants
+//! ONLY at the end — reordering shifts discriminants and silently breaks SDK
+//! consumers with cached IDLs.
 
 use sails_rs::prelude::*;
 
@@ -27,4 +27,10 @@ pub enum Error {
     AlreadyWithdrawn,
     Unauthorized,
     ZeroHashRejected,
+    // === v2 additions: appended at the END so existing SCALE discriminants
+    // stay stable for SDK consumers built against the v1 snapshot. ===
+    DeadlineNotReached,
+    NoDeadlineSet,
+    BountyAlreadyTerminal,
+    ReasonTooLong,
 }

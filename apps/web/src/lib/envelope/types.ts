@@ -1,12 +1,12 @@
 /**
- * Phase 4 envelope shape (mirror of services/worker/src/envelope/build.ts).
+ * Envelope shape (mirror of services/worker/src/envelope/build.ts).
  *
  * Used by EnvelopeViewer to type the parsed JSON it receives from
- * /envelopes/{id}.json (the side-channel storage path locked in P3.3).
+ * /envelopes/{id}.json (the side-channel storage path).
  *
- * Phase 6 prep: when the indexer extension extracts result_payload from
- * extrinsic args + serves via PostGraphile, EnvelopeViewer switches its
- * data source but the shape stays the same.
+ * When the indexer extension extracts result_payload from extrinsic args and
+ * serves via PostGraphile, EnvelopeViewer will switch its data source but the
+ * shape stays the same.
  */
 
 export interface UpstreamSnapshot {

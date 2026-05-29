@@ -11,7 +11,7 @@
  *     on hackathon scale. Walking via the same code path means the gap is
  *     covered by the same idempotent insert + projection logic.
  *
- * Decoder: chain/decode.ts (local re-implementation; Phase 7 polish item #5).
+ * Decoder: chain/decode.ts (local re-implementation).
  *
  * Per-batch atomicity (D1): each batch of N blocks commits as ONE transaction.
  *   - N `ingestSingleBlock(tx, ...)` calls (zero-cost when block is empty)

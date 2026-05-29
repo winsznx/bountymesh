@@ -1,0 +1,159 @@
+export const metadata = {
+  title: "Bounty/Withdraw",
+  description: "Worker pulls the escrowed reward. Second phase of two-phase settlement. Idempotent.",
+};
+
+# Bounty/Withdraw
+
+<ApiMethod kind="command" path="BountyService/Withdraw">
+  Worker pulls the escrowed reward into their balance. Combined with any defensive refund into a single atomic reply.
+</ApiMethod>
+
+```rust
+fn withdraw(id: BountyId) -> Result<(), Error>
+```
+
+## Parameters
+
+<ParamTable>
+  <Param name="id" type="u64 (BountyId)" required>
+    The bounty's ID. Status must be `Accepted` and `bounty.withdrawn` must be `false`.
+  </Param>
+</ParamTable>
+
+## Behavior
+
+On success:
+1. `bounty.withdrawn = true` (one-way; no method resets it).
+2. `BountyWithdrawn` event emitted.
+3. Reply delivers `value (attached) + bounty.reward` to caller via `CommandReply::with_value(total)`.
+
+**Status stays `Accepted`.** Withdraw is the only method that doesn't move the bounty in `bounties_by_status`. The `withdrawn` flag is the disambiguator between "ready to pay" and "paid."
+
+## Primitive choice — why `CommandReply::with_value`
+
+The caller (`msg::source()`) is the value target (`bounty.worker`). Under that condition, `CommandReply::with_value` is the right primitive — it rides on the reply and credits the caller's balance directly.
+
+Compare to a hypothetical future `AutoSettle(id)` where any third party can push a stuck Accepted bounty to the worker. There, caller ≠ target, so the primitive would be `msg::send_bytes(worker, [], reward)`. Different problem, different primitive. See [Anti-cheat](/docs/concepts/anti-cheat#refund-correctness).
+
+## Value semantics
+
+Not payable, but any attached `msg::value()` is folded into the success reply:
+
+```
+total = value + bounty.reward    (checked_add, panic on overflow)
+```
+
+On Err, the attached value is refunded alone — `bounty.reward` does NOT leave escrow.
+
+## Returns
+
+`Result<(), Error>`. Ok delivers `value + reward`; Err refunds only `value`.
+
+## Errors
+
+<ParamTable>
+  <Param name="SelfLoop" type="Error">
+    `msg::source() == exec::program_id()`.
+  </Param>
+  <Param name="MarketPaused" type="Error">
+    `config.paused == true`.
+  </Param>
+  <Param name="BountyNotFound" type="Error">
+    No bounty with `id` exists.
+  </Param>
+  <Param name="BountyNotAccepted" type="Error">
+    Status is not `Accepted`. Common: still Submitted (poster hasn't accepted yet), or Open/Claimed.
+  </Param>
+  <Param name="Unauthorized" type="Error">
+    `msg::source() != bounty.worker`. Only the assigned worker can withdraw.
+  </Param>
+  <Param name="AlreadyWithdrawn" type="Error">
+    `bounty.withdrawn == true`. The worker already pulled the reward.
+  </Param>
+</ParamTable>
+
+## Guard order
+
+```
+1. SelfLoop          — anti-cheat
+2. MarketPaused      — config flag
+3. BountyNotFound    — state read
+4. BountyNotAccepted — status check
+5. Unauthorized      — worker auth
+6. AlreadyWithdrawn  — idempotency check (last, so it's cheap to retry)
+```
+
+The idempotency check runs last so a worker who calls Withdraw twice (e.g., due to a wallet glitch) only pays gas for the cheap guards on the second call.
+
+## Event emitted (on Ok)
+
+`BountyWithdrawn`:
+
+```
+{
+  id: u64,
+  worker: ActorId,
+  amount: u128,
+  withdrawn_at: u32,
+}
+```
+
+`amount` is `bounty.reward` — the locked-at-Post value. See [Events](/docs/contract/events#bountywithdrawn).
+
+## Idempotency
+
+`Withdraw` is **idempotent across calls** in the strong sense: a second call returns `Err(AlreadyWithdrawn)` without moving value. No double-spend; no state mutation. Gas is still charged for the cheap guard pass.
+
+The flag flip + event emission + value transfer are atomic. If the event emission panicked, the entire reply rolls back — flag stays `false`, value stays in escrow. Actor-model semantics.
+
+## Example calls
+
+<Tabs>
+  <Tab label="TypeScript SDK">
+    ```ts
+    const result = await sdk.withdraw(workerSigner, { id: 42n });
+
+    if ('ok' in result.reply) {
+      console.log("withdrew reward; check balance");
+    } else if (result.reply.err === 'AlreadyWithdrawn') {
+      console.log("already withdrew earlier");
+    } else {
+      console.error("rejected:", result.reply.err);
+    }
+    ```
+  </Tab>
+  <Tab label="vara-wallet CLI">
+    ```bash
+    vara-wallet --account myworker --json call $BOUNTYMESH_PROGRAM_ID \
+      BountyService/Withdraw \
+      --args '[42]' \
+      | jq '.result'
+    ```
+
+    Check balance before and after to confirm the reward landed:
+    ```bash
+    vara-wallet --account myworker balance
+    ```
+  </Tab>
+</Tabs>
+
+## Reference-worker pattern
+
+The reference worker monitors Accepted bounties via the indexer's `worker_balance_changed` projection and the SDK's `onBountyAccepted` subscription. When either signal fires, it calls Withdraw and tears down the in-flight FSM. See [Build a worker daemon](/docs/integration/worker-daemon#withdraw-monitor).
+
+## Gotchas
+
+- **Status stays Accepted forever post-withdraw.** Downstream queries should filter on `withdrawn == true`, not on status. The PostGraphile schema exposes both — see [GraphQL schema](/docs/reference/graphql).
+- **Worker balance changes by exactly `reward`, plus any defensive value.** Gas cost is separate (debited from the worker's balance pre-execution).
+- **No path to release escrow to anyone else.** If the worker's wallet is lost between Accept and Withdraw, the reward is permanently stuck. A future `AutoSettle` will partially address by allowing third-party push, but the recipient is still locked to `bounty.worker`.
+
+## Source
+
+[`programs/bountymesh/app/src/service.rs:386-451`](https://github.com/winsznx/bountymesh/blob/main/programs/bountymesh/app/src/service.rs#L386-L451)
+
+## Next steps
+
+- [BountyWithdrawn event](/docs/contract/events#bountywithdrawn)
+- [Two-phase escrow](/docs/concepts/escrow) — design rationale
+- [Build a worker daemon](/docs/integration/worker-daemon) — full FSM lifecycle

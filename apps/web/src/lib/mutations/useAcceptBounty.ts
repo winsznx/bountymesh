@@ -26,7 +26,7 @@ export function useAcceptBounty() {
       if (!PROGRAM_ID) throw new Error("NEXT_PUBLIC_BOUNTYMESH_PROGRAM_ID not set");
       if (!WS_URL) throw new Error("NEXT_PUBLIC_VARA_WS not set");
 
-      // Lazy-import discipline per P3.1 — chain + SDK modules never touch
+      // Lazy-import discipline: chain + SDK modules never touch
       // module-top-level; only loaded when the user actually accepts.
       const { GearApi } = await import("@gear-js/api");
       const { BountyMeshClient } = await import("@bountymesh/sdk");

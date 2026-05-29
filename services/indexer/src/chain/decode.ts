@@ -7,12 +7,10 @@
  *
  * Why duplicate vs reuse SDK's SubscriptionManager decoder:
  *   The SDK's decoder is private to SubscriptionManager (events.ts) and not
- *   exported. Extracting it to a public SDK helper would require a Phase 2
- *   SDK refactor + a regression pass over the 22 existing tests. For Phase 3,
- *   the local duplication is isolated to one file, ~100 LoC, no public API
- *   contract concerns. Phase 7 polish item #5 tracks the eventual unification:
- *   "Extract decodeBlockEvents() to SDK public surface; consume from both
- *   subscriptions.ts and decode.ts; delete the indexer's local duplicate."
+ *   exported. The local duplication is isolated to one file, ~100 LoC, with no
+ *   public API contract concerns. Eventual unification: extract
+ *   decodeBlockEvents() to SDK public surface; consume from both
+ *   subscriptions.ts and decode.ts; delete the indexer's local duplicate.
  *
  * Wire-shape source of truth:
  *   PAYLOAD_TYPE entries below are byte-equal to the SDK's events.ts map.
@@ -32,8 +30,8 @@ import { getFnNamePrefix, getServiceNamePrefix, ZERO_ADDRESS } from 'sails-js';
 import type { GearApi } from '@gear-js/api';
 import type { HexString } from '@gear-js/api/types';
 import type { TypeRegistry } from '@polkadot/types';
-// Deep import of the SDK's compiled SailsProgram (see tests/harness/deployProgram.ts
-// for the same pattern + Phase 7 polish item #1).
+// Deep import of the SDK's compiled SailsProgram (same pattern as
+// tests/harness/deployProgram.ts).
 import { SailsProgram } from '../../node_modules/@bountymesh/sdk/dist/generated/lib.js';
 import type { BufferedEvent, EventName } from './buffer.js';
 
@@ -47,6 +45,18 @@ const PAYLOAD_TYPE: Record<EventName, string> = {
     '(String, String, {"id":"u64","poster":"[u8;32]","worker":"[u8;32]","reward":"u128","settled_at":"u32"})',
   BountyWithdrawn:
     '(String, String, {"id":"u64","worker":"[u8;32]","amount":"u128","withdrawn_at":"u32"})',
+  // v2 events — last_state is the SCALE u8 discriminant of BountyStatus
+  // (0=Open, 1=Claimed, 2=Submitted, 3=Accepted, 4=Rejected, 5=Cancelled,
+  // 6=TimedOut, 7=Revoked). Decoded as u8 to avoid needing the BountyStatus
+  // typeinfo metadata in the registry.
+  BountyCancelled:
+    '(String, String, {"id":"u64","by":"[u8;32]","refunded":"u128","cancelled_at":"u32"})',
+  BountyRejected:
+    '(String, String, {"id":"u64","by":"[u8;32]","worker":"[u8;32]","reason":"Option<String>","rejected_at":"u32"})',
+  BountyTimedOut:
+    '(String, String, {"id":"u64","last_state":"u8","called_by":"[u8;32]","refunded_to":"[u8;32]","timed_out_at":"u32"})',
+  BountyRevoked:
+    '(String, String, {"id":"u64","by":"[u8;32]","refunded_to":"[u8;32]","revoked_at":"u32"})',
 };
 
 /**
@@ -107,7 +117,7 @@ interface SignedBlockShape {
  * broadcast UserMessageSent in the same block — gear processes the queue in
  * FIFO order, so this 1:1 ordering holds for direct sends.
  *
- * Phase 6 mainnet note: under heavy load gear may defer queue draining to
+ * High-load note: under heavy mainnet load gear may defer queue draining to
  * the next block, which would break this same-block pairing. Mitigation
  * paths when that happens: (a) walk back to the previous block's
  * gear.sendMessage if same-block has fewer signed extrinsics than events;
@@ -246,6 +256,48 @@ function normalizeDecodedEvent(
         worker: raw.worker as HexString,
         amount: BigInt(raw.amount as string | number),
         withdrawnAt: raw.withdrawn_at as number,
+        blockHash,
+        txHash,
+      };
+    case 'BountyCancelled':
+      return {
+        eventName: 'BountyCancelled',
+        id: BigInt(raw.id as string | number),
+        by: raw.by as HexString,
+        refunded: BigInt(raw.refunded as string | number),
+        cancelledAt: raw.cancelled_at as number,
+        blockHash,
+        txHash,
+      };
+    case 'BountyRejected':
+      return {
+        eventName: 'BountyRejected',
+        id: BigInt(raw.id as string | number),
+        by: raw.by as HexString,
+        worker: raw.worker as HexString,
+        reason: (raw.reason as string | null) ?? null,
+        rejectedAt: raw.rejected_at as number,
+        blockHash,
+        txHash,
+      };
+    case 'BountyTimedOut':
+      return {
+        eventName: 'BountyTimedOut',
+        id: BigInt(raw.id as string | number),
+        lastState: raw.last_state as number,
+        calledBy: raw.called_by as HexString,
+        refundedTo: raw.refunded_to as HexString,
+        timedOutAt: raw.timed_out_at as number,
+        blockHash,
+        txHash,
+      };
+    case 'BountyRevoked':
+      return {
+        eventName: 'BountyRevoked',
+        id: BigInt(raw.id as string | number),
+        by: raw.by as HexString,
+        refundedTo: raw.refunded_to as HexString,
+        revokedAt: raw.revoked_at as number,
         blockHash,
         txHash,
       };

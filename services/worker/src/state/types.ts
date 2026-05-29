@@ -12,12 +12,12 @@
 export const WORKER_STATE_VERSION = 1;
 
 /**
- * Pending-Accept Monitor entry (P2 §8 / P3.7 semantics lock).
+ * Pending-Accept Monitor entry.
  *
- * P3.7b writes one of these on Submit-confirmed; the Pending-Accept
- * Monitor (P3.8) iterates the array, watches for BountyAccepted events
- * matching each `id`, and triggers Withdraw when observed. P3.8 writes
- * status='done' to worker.history.jsonl and clears the entry from here.
+ * The Main FSM writes one of these on Submit-confirmed; the Pending-Accept
+ * Monitor iterates the array, watches for BountyAccepted events matching each
+ * `id`, and triggers Withdraw when observed. On Withdraw-confirmed the Monitor
+ * writes status='done' to worker.history.jsonl and clears the entry from here.
  */
 export interface PendingAcceptEntry {
   /** bountyId as decimal string (BigInt-boundary discipline). */

@@ -100,7 +100,7 @@ export function useStats(): UseStatsResult {
   };
 
   // Client-side reward aggregation. Replaced by aggregates.sum.reward at the
-  // GraphQL boundary once @graphile-pg-aggregates is installed (Phase 6 prep).
+  // GraphQL boundary once @graphile-pg-aggregates is installed.
   let totalEscrowed = 0n;
   let totalSettled = 0n;
   for (const b of rewards.data.allBounties.nodes) {

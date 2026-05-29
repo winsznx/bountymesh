@@ -108,13 +108,13 @@ export function PostBountyForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-6 rounded-md border border-slate-800 bg-slate-900/30 p-6"
+      className="space-y-6 rounded-md border border-ash-white bg-ash-white p-6"
     >
       <Field id="bm-title" label="Title" error={errors.title?.message}>
         <input
           {...register("title")}
           id="bm-title"
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none"
+          className="w-full rounded-md border border-abyssal-ink/20 bg-basalt-canvas px-3 py-2 text-sm text-abyssal-ink focus:border-digital-orange focus:outline-none"
           placeholder="One-line summary of the work"
           maxLength={MAX_TITLE_LEN}
         />
@@ -125,7 +125,7 @@ export function PostBountyForm() {
           {...register("description")}
           id="bm-description"
           rows={4}
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none"
+          className="w-full rounded-md border border-abyssal-ink/20 bg-basalt-canvas px-3 py-2 text-sm text-abyssal-ink focus:border-digital-orange focus:outline-none"
           placeholder="What you want done. Markdown not rendered — write plain text."
           maxLength={MAX_DESCRIPTION_LEN}
         />
@@ -136,7 +136,7 @@ export function PostBountyForm() {
           {...register("acceptance")}
           id="bm-acceptance"
           rows={3}
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100 focus:border-cyan-400 focus:outline-none"
+          className="w-full rounded-md border border-abyssal-ink/20 bg-basalt-canvas px-3 py-2 font-mono text-xs text-abyssal-ink focus:border-digital-orange focus:outline-none"
           placeholder="How the worker proves they did the work."
           maxLength={MAX_ACCEPTANCE_LEN}
         />
@@ -154,7 +154,7 @@ export function PostBountyForm() {
             id="bm-reward"
             type="text"
             inputMode="decimal"
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-100 focus:border-cyan-400 focus:outline-none"
+            className="w-full rounded-md border border-abyssal-ink/20 bg-basalt-canvas px-3 py-2 font-mono text-sm text-abyssal-ink focus:border-digital-orange focus:outline-none"
             placeholder="0.5"
           />
         </Field>
@@ -163,7 +163,7 @@ export function PostBountyForm() {
           <select
             {...register("track")}
             id="bm-track"
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none"
+            className="w-full rounded-md border border-abyssal-ink/20 bg-basalt-canvas px-3 py-2 text-sm text-abyssal-ink focus:border-digital-orange focus:outline-none"
           >
             {TRACKS.map((t) => (
               <option key={t} value={t}>
@@ -189,16 +189,16 @@ export function PostBountyForm() {
           id="bm-deadline"
           type="text"
           inputMode="numeric"
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-100 focus:border-cyan-400 focus:outline-none"
+          className="w-full rounded-md border border-abyssal-ink/20 bg-basalt-canvas px-3 py-2 font-mono text-sm text-abyssal-ink focus:border-digital-orange focus:outline-none"
           placeholder="Leave blank for no deadline"
         />
       </Field>
 
-      <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+      <div className="flex items-center justify-end gap-3 border-t border-ash-white pt-4">
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Posting…" : "Post bounty"}
         </button>
@@ -224,15 +224,15 @@ function Field({
     <div className="space-y-2">
       <label
         htmlFor={id}
-        className="block text-xs font-medium uppercase tracking-wider text-slate-400"
+        className="block text-xs font-medium uppercase tracking-wider text-abyssal-ink/60"
       >
         {label}
       </label>
       {children}
       {error ? (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-digital-orange">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-slate-500">{hint}</p>
+        <p className="text-xs text-abyssal-ink/40">{hint}</p>
       ) : null}
     </div>
   );

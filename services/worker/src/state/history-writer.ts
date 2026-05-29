@@ -1,16 +1,16 @@
 /**
  * Full-record writer for worker.history.jsonl.
  *
- * Extends P3.5's WorkHistoryDedup (read+minimal-append) with the production
- * write path. Per P3.7 semantics lock:
- *   - status='abandoned' written by P3.7b on Main-FSM abandonment paths
+ * Extends WorkHistoryDedup (read+minimal-append) with the production write
+ * path. Semantics:
+ *   - status='abandoned' written by the Main FSM on abandonment paths
  *     (partial tx_hashes populated, envelope_sha256 may be null)
- *   - status='done' written by P3.8 on Withdraw-confirmed (full tx_hashes
- *     populated, envelope_sha256 always set)
+ *   - status='done' written by the Pending-Accept Monitor on Withdraw-confirmed
+ *     (full tx_hashes populated, envelope_sha256 always set)
  *
- * Atomic-append discipline (P2 §B): line MUST be ≤ MAX_LINE_BYTES (4000) so
- * POSIX O_APPEND remains atomic. The locked field shape produces ~400-500B
- * lines; the guard fires only if a future field bloats past safe.
+ * Atomic-append discipline: line MUST be ≤ MAX_LINE_BYTES (4000) so POSIX
+ * O_APPEND remains atomic. The locked field shape produces ~400-500B lines;
+ * the guard fires only if a future field bloats past safe.
  */
 
 import { appendFileSync } from 'node:fs';

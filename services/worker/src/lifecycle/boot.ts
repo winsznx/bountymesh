@@ -1,11 +1,10 @@
 /**
  * Boot orchestrator — wires every worker subsystem into a runnable process.
  *
- * 7-stage sequence (P2 §1 + P3.9 operator-locked). Each stage logs entry +
- * pushes a rollback closure onto a LIFO stack iff it allocated a resource
- * needing teardown. On any throw, unwind in reverse-of-construction; on
- * success, return a BootHandle whose shutdown() runs the operator-locked
- * ShutdownSequence (shutdown.ts).
+ * 7-stage operator-locked sequence. Each stage logs entry + pushes a rollback
+ * closure onto a LIFO stack iff it allocated a resource needing teardown. On
+ * any throw, unwind in reverse-of-construction; on success, return a BootHandle
+ * whose shutdown() runs the operator-locked ShutdownSequence (shutdown.ts).
  */
 
 import { u8aToHex } from '@polkadot/util';

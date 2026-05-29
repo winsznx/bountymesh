@@ -1,12 +1,117 @@
 @import "tailwindcss";
 
-@theme inline {
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-jetbrains-mono);
+/* ───────────────────────────────────────────────────────────────────────
+   Light-theme with generous 40px radii, Bebas Neue display + DM Sans body.
+   ─────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Colors */
+  --color-basalt-canvas: #e2e2df;   /* page bg, secondary card surface */
+  --color-ash-white: #f7f6f2;       /* primary card surface */
+  --color-abyssal-ink: #070607;     /* heading + body text, strong borders */
+  --color-pure-white: #ffffff;      /* text on filled CTA, input bg */
+  --color-digital-orange: #fc5000;  /* primary CTA, brand accent */
+  --color-cyber-violet: #524ae9;    /* decorative shapes, accent cards */
+  --color-pixel-glare: #f5f28e;     /* highlight overlay, subtle accent */
+
+  /* Typography — families (next/font CSS vars injected on <html>) */
+  --font-display: var(--font-bebas-neue), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+
+  /* Typography — Scale */
+  --text-body-sm: 14px;
+  --leading-body-sm: 1.25;
+  --text-body: 16px;
+  --leading-body: 1.55;
+  --text-subheading: 30px;
+  --leading-subheading: 1.11;
+  --text-heading-sm: 32px;
+  --leading-heading-sm: 0.95;
+  --tracking-heading-sm: 0.02em;
+  --text-heading: 56px;
+  --leading-heading: 0.94;
+  --tracking-heading: 0.02em;
+  --text-display: 96px;
+  --leading-display: 0.94;
+  --tracking-display: 0.02em;
+
+  /* Spacing */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-9: 9px;
+  --spacing-10: 10px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-18: 18px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-56: 56px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+  --spacing-92: 92px;
+
+  /* Border radius — BountyMesh named scale */
+  --radius-card: 40px;
+  --radius-input: 100px;
+  --radius-pill: 9999px;
+}
+
+/* Bebas Neue feature settings for the assertive display voice */
+.font-display,
+[class*="font-display"] {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  font-feature-settings: "ss06", "ss10";
+}
+
+/* Sensible body defaults */
+html,
+body {
+  background: var(--color-basalt-canvas);
+  color: var(--color-abyssal-ink);
 }
 
 body {
-  background: #020617;
-  color: #f1f5f9;
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: 500;
+}
+
+/* Headings default to display font — components can override with text-* utilities */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  font-feature-settings: "ss06", "ss10";
+  font-weight: 400;
+}
+
+/* Inputs read consistently — Pure White surface, Abyssal Ink text */
+input,
+textarea,
+select {
+  font-family: var(--font-body);
+  color: var(--color-abyssal-ink);
+  background: var(--color-pure-white);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgb(from var(--color-abyssal-ink) r g b / 0.4);
+}
+
+/* Code blocks keep monospace stack — that's correct typography for code */
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
 }

@@ -1,8 +1,11 @@
-//! BountyMesh on-chain state model — PRD §5.3, field order locked.
+//! BountyMesh on-chain state model — field order locked.
 //!
-//! Reachable status variants this session: Open, Claimed, Submitted, Accepted.
-//! Cancelled/Rejected/TimedOut/Revoked are declared (forward-compat per
-//! operator decision at Step 4) but no method transitions into them yet.
+//! v2 surface: all 8 BountyStatus variants reachable.
+//! - Open → {Claimed, Cancelled, TimedOut}
+//! - Claimed → {Submitted, TimedOut}
+//! - Submitted → {Accepted, Rejected, TimedOut}
+//! - Accepted → Withdraw (flag flip, status stays Accepted)
+//! - Any non-Revoked → Revoked (owner emergency)
 
 use sails_rs::prelude::*;
 use sails_rs::collections::BTreeMap;
@@ -13,6 +16,7 @@ pub const MAX_TITLE_LEN: usize = 200;
 pub const MAX_DESCRIPTION_LEN: usize = 2_000;
 pub const MAX_ACCEPTANCE_LEN: usize = 1_000;
 pub const MAX_RESULT_PAYLOAD_LEN: usize = 5_000;
+pub const MAX_REJECTION_REASON_LEN: usize = 500;
 
 #[derive(Encode, Decode, TypeInfo, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[codec(crate = sails_rs::scale_codec)]
@@ -59,6 +63,15 @@ pub struct Bounty {
     pub result_payload: Option<String>,
     pub result_hash: Option<H256>,
     pub withdrawn: bool,
+    // === v2 extensions: appended at the END so the SCALE wire shape stays
+    // backward-compatible with any v1 consumer that hand-rolled struct decoding
+    // (none exist today, but the Bounty struct is not yet in the IDL surface,
+    // so future additions MUST keep this discipline). ===
+    pub cancelled_at: Option<u32>,
+    pub rejected_at: Option<u32>,
+    pub timed_out_at: Option<u32>,
+    pub revoked_at: Option<u32>,
+    pub rejection_reason: Option<String>,
 }
 
 #[derive(Encode, Decode, TypeInfo, Clone, Debug)]

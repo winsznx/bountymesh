@@ -11,7 +11,7 @@
  *   - Postgres NUMERIC(39,0) is bound via STRING in Drizzle (`numeric` default
  *     mode) — NEVER as BigInt or number
  *   - Conversion at the boundary: `event.reward.toString()`
- *   - Phase 5 frontend consumers reverse: `BigInt(graphqlResponse.reward)`
+ *   - TypeScript consumers reverse: `BigInt(graphqlResponse.reward)`
  *
  * Block heights stay as `number` (safe under 2^53 forever at 6s blocks).
  *
@@ -114,7 +114,7 @@ export async function projectEvent(
 
     case 'BountyWithdrawn':
       // status STAYS 'Accepted' — Withdraw is a flag flip, not a status
-      // transition (Phase 1 contract; MASTER_PRD §4.1 state machine).
+      // transition.
       await tx
         .update(bounties)
         .set({
@@ -126,10 +126,57 @@ export async function projectEvent(
         .where(and(eq(bounties.id, id), lt(bounties.lastEventBlock, blockNumber)));
       return;
 
+    case 'BountyCancelled':
+      // Status flip Open → Cancelled (terminal). Per-transition tx hash and
+      // timestamp tracking are intentionally NOT added as schema columns in
+      // this projection — they're recoverable from the event log if needed.
+      // Future migration may add cancel_tx_hash, cancelled_at fields.
+      await tx
+        .update(bounties)
+        .set({
+          status: 'Cancelled',
+          lastEventBlock: blockNumber,
+        })
+        .where(and(eq(bounties.id, id), lt(bounties.lastEventBlock, blockNumber)));
+      return;
+
+    case 'BountyRejected':
+      // Status flip Submitted → Rejected (terminal). Rejection reason lives
+      // in the event payload; recover via the events table when displayed.
+      await tx
+        .update(bounties)
+        .set({
+          status: 'Rejected',
+          lastEventBlock: blockNumber,
+        })
+        .where(and(eq(bounties.id, id), lt(bounties.lastEventBlock, blockNumber)));
+      return;
+
+    case 'BountyTimedOut':
+      // Status flip {Open|Claimed|Submitted} → TimedOut (terminal). last_state
+      // is in the event payload for forensics.
+      await tx
+        .update(bounties)
+        .set({
+          status: 'TimedOut',
+          lastEventBlock: blockNumber,
+        })
+        .where(and(eq(bounties.id, id), lt(bounties.lastEventBlock, blockNumber)));
+      return;
+
+    case 'BountyRevoked':
+      // Status flip {any non-Revoked} → Revoked (terminal). Owner emergency.
+      await tx
+        .update(bounties)
+        .set({
+          status: 'Revoked',
+          lastEventBlock: blockNumber,
+        })
+        .where(and(eq(bounties.id, id), lt(bounties.lastEventBlock, blockNumber)));
+      return;
+
     default: {
       // TypeScript exhaustiveness AND runtime guard.
-      // The D3 parse-error test exercises this branch by passing a
-      // synthetic event with a non-union `eventName` cast through `as any`.
       const _exhaustive: never = event;
       throw new Error(
         `projectEvent: unknown event shape (eventName='${(_exhaustive as { eventName: string }).eventName}')`,

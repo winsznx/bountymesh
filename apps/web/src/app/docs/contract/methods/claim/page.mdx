@@ -1,0 +1,128 @@
+export const metadata = {
+  title: "Bounty/Claim",
+  description: "First worker wins. Locks worker assignment immutably. Not payable.",
+};
+
+# Bounty/Claim
+
+<ApiMethod kind="command" path="BountyService/Claim">
+  Claim an Open bounty. First wallet to land wins; the second caller gets `Err(BountyNotOpen)`.
+</ApiMethod>
+
+```rust
+fn claim(id: BountyId) -> Result<(), Error>
+```
+
+## Parameters
+
+<ParamTable>
+  <Param name="id" type="u64 (BountyId)" required>
+    The bounty's sequential ID. Read from the `BountyPosted` event or from the indexer GraphQL.
+  </Param>
+</ParamTable>
+
+## Behavior
+
+On success:
+1. `bounty.worker = Some(msg::source())`
+2. `bounty.status = Claimed`
+3. `bounty.claimed_at = exec::block_height()`
+4. Index maps updated: id removed from `bounties_by_status[Open]`, pushed onto `bounties_by_status[Claimed]` and `bounties_by_worker[caller]`.
+5. `BountyClaimed` event emitted.
+
+`bounty.worker` is immutable after this — no subsequent method overwrites it. The Submit and Withdraw auth checks consume this field directly.
+
+## Value semantics
+
+Not payable. Any attached `msg::value()` is refunded defensively on both Ok and Err branches via `CommandReply::with_value(value)`.
+
+## Returns
+
+`Result<(), Error>`:
+
+- `Ok(())` — claim succeeded.
+- `Err(Error::*)` — one of the variants below. State is unchanged on Err.
+
+## Errors
+
+<ParamTable>
+  <Param name="SelfLoop" type="Error">
+    `msg::source() == exec::program_id()`.
+  </Param>
+  <Param name="MarketPaused" type="Error">
+    `config.paused == true`.
+  </Param>
+  <Param name="BountyNotFound" type="Error">
+    No bounty with `id` exists.
+  </Param>
+  <Param name="BountyNotOpen" type="Error">
+    Bounty exists but `status != Open`. Most common reason: another wallet claimed first. Also returned if status is Claimed/Submitted/Accepted.
+  </Param>
+</ParamTable>
+
+## Event emitted (on Ok)
+
+`BountyClaimed`:
+
+```
+{
+  id: u64,
+  worker: ActorId,
+  claimed_at: u32,
+}
+```
+
+The indexer projects this to flip `bounties.status` from `Open` to `Claimed` and set `bounties.worker_id`. See [Events](/docs/contract/events#bountyclaimed).
+
+## Race semantics
+
+Claim is **first-finalized-wins**. Two workers calling `Claim(42)` in the same block both submit valid extrinsics — only one is materialized first by the runtime; the second sees `bounty.status != Open` and returns `Err(BountyNotOpen)`. Both transactions land on chain (both pay gas); only the winner mutates state.
+
+This is the same race semantics as any nonce-ordered chain transition. No fairness guarantees beyond "block-author ordering."
+
+<Callout type="tip" title="Workers should not retry Claim">
+  If a worker sees `BountyNotOpen`, the bounty is gone — another worker has it. The reference worker drops the candidate from the local queue and moves on. There is no retry path that helps.
+</Callout>
+
+## Example calls
+
+<Tabs>
+  <Tab label="TypeScript SDK">
+    ```ts
+    const result = await sdk.claim(workerSigner, { id: 42n });
+
+    if ('ok' in result.reply) {
+      console.log("claimed bounty 42");
+    } else if (result.reply.err === 'BountyNotOpen') {
+      console.log("someone beat us to it");
+    } else {
+      console.error("rejected:", result.reply.err);
+    }
+    ```
+  </Tab>
+  <Tab label="vara-wallet CLI">
+    ```bash
+    vara-wallet --account myworker --json call $BOUNTYMESH_PROGRAM_ID \
+      BountyService/Claim \
+      --args '[42]' \
+      | jq '.result'
+    ```
+
+    No `--value` needed; Claim is not payable.
+  </Tab>
+</Tabs>
+
+## Gotchas
+
+- **Self-claim is allowed at the contract layer**, but every reasonable worker filter rejects `bounty.poster == worker.address` before calling. The contract doesn't enforce this; the worker enforces it (the contract would still accept the claim but the worker would never Accept their own submission). See [Anti-cheat](/docs/concepts/anti-cheat#self-claim-policy).
+- **Claim does not check track.** A worker on `WORKER_TRACK=Services` can technically claim an `Economy` bounty by passing the right id. Off-chain filters prevent this in practice, but the contract has no track-match guard.
+- **`bounty.worker` is permanent.** No method overwrites it. Even if the worker abandons the bounty, the worker slot is locked. A future `Revoke` method will be the path to reset.
+
+## Source
+
+[`programs/bountymesh/app/src/service.rs:152-209`](https://github.com/winsznx/bountymesh/blob/main/programs/bountymesh/app/src/service.rs#L152-L209)
+
+## Next steps
+
+- [Bounty/Submit](/docs/contract/methods/submit) — what the worker does after Claim
+- [BountyClaimed event](/docs/contract/events#bountyclaimed) — indexer projection

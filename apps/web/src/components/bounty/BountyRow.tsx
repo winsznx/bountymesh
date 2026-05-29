@@ -9,6 +9,10 @@ import { useWallet } from "@/lib/wallet/useWallet";
 import type { Bounty } from "@/lib/graphql/types";
 import { GRID_TEMPLATE } from "./BountyTable";
 
+/**
+ * Desktop bounty card — laid out as a grid row INSIDE a card surface.
+ * Renders on md+; BountyCard handles mobile.
+ */
 export function BountyRow({ bounty }: { bounty: Bounty }) {
   const { chainSS58 } = useWallet();
 
@@ -17,11 +21,15 @@ export function BountyRow({ bounty }: { bounty: Bounty }) {
       href={`/bounties/${bounty.id.toString()}`}
       role="link"
       aria-label={`Bounty ${bounty.id.toString()}: ${bounty.title}`}
-      className="hidden items-center gap-4 border-b border-slate-800/70 px-4 py-3 transition-colors hover:bg-slate-900/50 focus-visible:bg-slate-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:grid"
+      className="hidden items-center gap-4 rounded-card bg-ash-white px-6 py-5 transition-colors hover:bg-pure-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-digital-orange md:grid"
       style={{ gridTemplateColumns: GRID_TEMPLATE }}
     >
-      <div className="font-mono text-sm text-slate-400">#{bounty.id.toString()}</div>
-      <div className="truncate text-sm text-slate-100">{bounty.title}</div>
+      <div className="font-display text-2xl tracking-heading-sm text-abyssal-ink">
+        #{bounty.id.toString()}
+      </div>
+      <div className="truncate text-base font-medium text-abyssal-ink">
+        {bounty.title}
+      </div>
       <div>
         <StatusPill status={bounty.status} />
       </div>
@@ -34,7 +42,9 @@ export function BountyRow({ bounty }: { bounty: Bounty }) {
       <div>
         <AddressChip address={bounty.poster} chainSS58={chainSS58} />
       </div>
-      <div className="font-mono text-xs text-slate-400">#{bounty.postedAt.toLocaleString()}</div>
+      <div className="font-mono text-xs text-abyssal-ink/60">
+        #{bounty.postedAt.toLocaleString()}
+      </div>
     </Link>
   );
 }

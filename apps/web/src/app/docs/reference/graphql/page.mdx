@@ -1,0 +1,256 @@
+export const metadata = {
+  title: "GraphQL schema",
+  description: "PostGraphile-generated GraphQL surface over the indexer's Postgres projection. Four tables, auto-derived query types, BigInt-as-string.",
+};
+
+# GraphQL schema
+
+The indexer exposes a GraphQL endpoint at `/graphql`. The schema is **auto-derived by PostGraphile** from the underlying Postgres tables; the indexer code does not write a GraphQL resolver layer.
+
+```
+Mainnet endpoint: https://api.bountymesh.xyz/graphql
+GraphiQL UI:      https://api.bountymesh.xyz/graphiql
+```
+
+## Schema surface
+
+Four tables drive the schema:
+
+<ParamTable>
+  <Param name="bounties" type="table">
+    Current-state projection. One row per bounty.
+  </Param>
+  <Param name="bounty_events" type="table">
+    Append-only event log. Source of truth for the projection.
+  </Param>
+  <Param name="indexer_state" type="table">
+    Indexer singleton (start block, last finalized block, program ID).
+  </Param>
+  <Param name="parse_errors" type="table">
+    Parse-error sink. Liveness over purity — bad payloads don't block the watermark.
+  </Param>
+</ParamTable>
+
+## Bounty type
+
+```graphql
+type Bounty {
+  id: BigInt!
+  poster: String!
+  worker: String
+  reward: BigInt!          # u128 → numeric(39,0) → BigInt scalar string
+  track: String!           # 'Services' | 'Economy' | 'Social' | 'Open'
+  status: String!          # 'Open' | 'Claimed' | 'Submitted' | 'Accepted'
+  postedAt: BigInt!
+  claimedAt: BigInt
+  submittedAt: BigInt
+  acceptedAt: BigInt
+  withdrawnAt: BigInt
+  withdrawn: Boolean!
+  resultHash: String
+  postTxHash: String
+  claimTxHash: String
+  submitTxHash: String
+  acceptTxHash: String
+  withdrawTxHash: String
+  lastEventBlock: BigInt!
+  title: String
+  description: String
+  acceptance: String
+  deadline: BigInt
+}
+```
+
+**`title`, `description`, `acceptance` are nullable** — populated from the `BountyPosted` event extension, but legacy rows from before the schema extension may be null. A future `DiscoveryService.GetBounty(id)` query will backfill.
+
+## BigInt scalar contract
+
+PostGraphile's BigInt scalar **serializes as JSON string** in responses AND **accepts strings in variables**. This is the locked contract — see [Postgres / Drizzle gotchas in CLAUDE.md](https://github.com/winsznx/bountymesh/blob/main/CLAUDE.md#postgres--drizzle-gotchas):
+
+```ts
+// TypeScript consumers use:
+type Bounty = {
+  id: string;         // BigInt from GraphQL
+  reward: string;     // BigInt from GraphQL
+  postedAt: string;   // BigInt from GraphQL
+  // ...
+};
+
+// SDK uses:
+type SDKBounty = {
+  id: bigint;
+  reward: bigint;
+  postedAt: bigint;
+  // ...
+};
+```
+
+The conversion boundary is **at the consumer**. The frontend `parse` step (TanStack Query select) converts strings to bigint immediately on receive.
+
+## Queries
+
+### Single bounty lookup
+
+```graphql
+query GetBounty($id: BigInt!) {
+  bountyById(id: $id) {
+    id
+    poster
+    worker
+    reward
+    status
+    track
+    title
+    description
+    acceptance
+    resultHash
+    withdrawn
+  }
+}
+```
+
+Note: PostGraphile generates `${typeName}By${columnName}` — for `bounties.id`, the query is `bountyById(id: BigInt!)`, NOT `bounty(id)`.
+
+### List + filter
+
+```graphql
+query OpenServicesBounties {
+  bounties(
+    condition: { status: "Open", track: "Services" }
+    first: 20
+    orderBy: POSTED_AT_DESC
+  ) {
+    nodes {
+      id
+      title
+      reward
+      postedAt
+      poster
+    }
+  }
+}
+```
+
+### Lifecycle event log
+
+```graphql
+query BountyEventLog($bountyId: BigInt!) {
+  bountyEvents(
+    condition: { bountyId: $bountyId }
+    orderBy: BLOCK_NUMBER_ASC
+  ) {
+    nodes {
+      eventName
+      blockNumber
+      blockHash
+      txHash
+      payload
+      indexedAt
+    }
+  }
+}
+```
+
+### Worker activity
+
+```graphql
+query WorkerHistory($worker: String!) {
+  bounties(condition: { worker: $worker }, orderBy: CLAIMED_AT_DESC) {
+    nodes {
+      id
+      reward
+      status
+      claimedAt
+      submittedAt
+      withdrawn
+      withdrawnAt
+    }
+  }
+}
+```
+
+### Indexer health
+
+```graphql
+query IndexerHealth {
+  indexerStates {
+    nodes {
+      programId
+      lastFinalizedBlock
+      updatedAt
+    }
+  }
+}
+```
+
+Also exposed at `/health` (REST): `{ ok: true, chain: "connected", lagBlocks: 0 }`.
+
+### Stats aggregation
+
+```graphql
+query Stats {
+  totalCount: bounties(first: 0) { totalCount }
+  openCount: bounties(condition: { status: "Open" }, first: 0) { totalCount }
+  withdrawnCount: bounties(condition: { withdrawn: true }, first: 0) { totalCount }
+}
+```
+
+## Permission model
+
+The Postgres role used by PostGraphile is **`bountymesh_readonly`** — SELECT only on all tables in `public`. The writer role (`bountymesh`) is never exposed to GraphQL.
+
+This is enforced by `docker/init.sql` (local) and the Railway init migration. The `@omit` smart comment hides the `parse_errors` table from GraphQL — visible only via psql.
+
+## Filtering DSL
+
+PostGraphile's `condition` supports equality and basic comparators:
+
+```graphql
+bounties(condition: {
+  status: "Open"
+  track: "Services"
+  posterEquals: "0xa2d2..."
+})
+```
+
+For range queries (reward > X, postedAt between A and B), use the `filter` arg:
+
+```graphql
+bounties(filter: {
+  reward: { greaterThan: "500000000000" }
+  postedAt: { greaterThanOrEqualTo: "33000000" }
+})
+```
+
+Filter arg requires `--connection-filter-plugin` (enabled by default in our PostGraphile config).
+
+## Subscriptions (current status)
+
+PostGraphile supports live queries via WebSocket subscriptions. **Not currently enabled** on mainnet — the indexer uses HTTP-only. A future deploy may add `subscriptions: true` to the PostGraphile config. Workaround for now: poll with TanStack Query (5-10s interval).
+
+## Pagination
+
+Cursor-based via Relay-style connections:
+
+```graphql
+query Page($cursor: Cursor) {
+  bounties(first: 20, after: $cursor) {
+    pageInfo { hasNextPage, endCursor }
+    nodes { id, title, reward }
+  }
+}
+```
+
+The frontend uses this pattern on `/bounties` for infinite-scroll.
+
+## Source
+
+- [`services/indexer/src/schema.ts`](https://github.com/winsznx/bountymesh/blob/main/services/indexer/src/schema.ts) — Drizzle table definitions
+- [`services/indexer/src/http/postgraphile.ts`](https://github.com/winsznx/bountymesh/blob/main/services/indexer/src/http) — PostGraphile boot config
+- [PostGraphile docs](https://www.graphile.org/postgraphile/)
+
+## Next steps
+
+- [SDK reference](/docs/reference/sdk) — TypeScript client uses SDK for chain, GraphQL for projection
+- [IDL reference](/docs/reference/idl) — chain-side IDL
+- [Events](/docs/contract/events) — event projection details

@@ -7,9 +7,9 @@
  * catchup-sourced Candidates have blockHash=null (not in the projection)
  * and txHash from the postTxHash column.
  *
- * Pagination: NONE. pageSize hardcoded at 1000. totalCount > pageSize
- * throws PaginationOverflowError — forces operator to revisit at Phase 6
- * scale. Cursor pagination is a Phase 6 implementation item.
+ * Pagination: NONE. pageSize hardcoded at 1000. totalCount > pageSize throws
+ * PaginationOverflowError — forces operator to revisit at scale. Cursor
+ * pagination is a future implementation item.
  */
 
 import type { Track } from '../config/index.js';
@@ -25,7 +25,7 @@ export class PaginationOverflowError extends Error {
     super(
       `Catchup pagination overflow: indexer returned totalCount=${totalCount} ` +
         `which exceeds the hardcoded pageSize=${pageSize}. ` +
-        `Phase 6 scaling concern; implement cursor pagination before mainnet scale.`,
+        `Scaling concern; implement cursor pagination before high-volume mainnet usage.`,
     );
     this.name = 'PaginationOverflowError';
     this.totalCount = totalCount;

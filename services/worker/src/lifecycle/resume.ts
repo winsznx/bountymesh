@@ -1,5 +1,5 @@
 /**
- * Resume orchestrator (P3.10a / boot stage B-5.5).
+ * Resume orchestrator (boot stage B-5.5).
  *
  * Inspects workerState.inflight at boot. If set, the prior process crashed
  * mid-cycle. Branches by current chain state (queried via indexer GraphQL —
@@ -241,9 +241,89 @@ export async function recoverInflight(deps: ResumeDeps): Promise<void> {
       await deps.workerState.clearInflight();
       return;
     }
+    case 'Cancelled': {
+      // Poster cancelled while the worker was claimed. The contract refunded
+      // the escrow to the poster; the worker did no work that landed on
+      // chain. Mark abandoned with the explicit reason for forensics.
+      deps.logger.info({
+        ...baseFields,
+        decision: 'abandoned-cancelled-by-poster',
+      });
+      appendHistoryRecord(deps.historyPath, deps.dedup, {
+        id: bountyId,
+        status: 'abandoned',
+        completed_at: new Date().toISOString(),
+        tx_hashes: row.postTxHash
+          ? { post: row.postTxHash as `0x${string}` }
+          : {},
+        envelope_sha256: null,
+      });
+      await deps.workerState.clearInflight();
+      return;
+    }
+    case 'Rejected': {
+      // Poster rejected the worker's submission. The worker DID do work that
+      // landed on chain (Submit succeeded); reward did not flow. Carry both
+      // the submit tx hash and any prior post tx hash for post-mortem.
+      deps.logger.info({
+        ...baseFields,
+        decision: 'abandoned-rejected-by-poster',
+      });
+      const txHashes: Record<string, `0x${string}`> = {};
+      if (row.postTxHash) txHashes.post = row.postTxHash as `0x${string}`;
+      if (row.submitTxHash) txHashes.submit = row.submitTxHash as `0x${string}`;
+      appendHistoryRecord(deps.historyPath, deps.dedup, {
+        id: bountyId,
+        status: 'abandoned',
+        completed_at: new Date().toISOString(),
+        tx_hashes: txHashes,
+        envelope_sha256: SENTINEL_ZERO_HASH,
+      });
+      await deps.workerState.clearInflight();
+      return;
+    }
+    case 'TimedOut': {
+      // Permissionless watchdog timed the bounty out. Escrow refunded to
+      // poster's mailbox. Worker abandoned regardless of whether Claim /
+      // Submit landed pre-timeout.
+      deps.logger.info({
+        ...baseFields,
+        decision: 'abandoned-timed-out',
+      });
+      const txHashes: Record<string, `0x${string}`> = {};
+      if (row.postTxHash) txHashes.post = row.postTxHash as `0x${string}`;
+      if (row.submitTxHash) txHashes.submit = row.submitTxHash as `0x${string}`;
+      appendHistoryRecord(deps.historyPath, deps.dedup, {
+        id: bountyId,
+        status: 'abandoned',
+        completed_at: new Date().toISOString(),
+        tx_hashes: txHashes,
+        envelope_sha256: null,
+      });
+      await deps.workerState.clearInflight();
+      return;
+    }
+    case 'Revoked': {
+      // Owner emergency revoke. Worker had no recourse; mark abandoned.
+      deps.logger.warn({
+        ...baseFields,
+        decision: 'abandoned-revoked-by-owner',
+      });
+      const txHashes: Record<string, `0x${string}`> = {};
+      if (row.postTxHash) txHashes.post = row.postTxHash as `0x${string}`;
+      if (row.submitTxHash) txHashes.submit = row.submitTxHash as `0x${string}`;
+      appendHistoryRecord(deps.historyPath, deps.dedup, {
+        id: bountyId,
+        status: 'abandoned',
+        completed_at: new Date().toISOString(),
+        tx_hashes: txHashes,
+        envelope_sha256: null,
+      });
+      await deps.workerState.clearInflight();
+      return;
+    }
     default: {
-      // Unreachable on current chain surface (Cancelled/Rejected/Revoked/
-      // TimedOut have no exports). Defensive — handle any future status.
+      // Defense in depth — handle any future status not yet contemplated.
       deps.logger.warn({
         ...baseFields,
         status: row.status,

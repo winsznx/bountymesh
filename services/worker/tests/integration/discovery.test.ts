@@ -105,8 +105,8 @@ describe('discovery — real chain + real Postgres + real indexer', () => {
       indexerBaseUrl: indexer.baseUrl,
       indexerHealthMaxLagBlocks: 1000, // generous for `gear --dev` block timing
       keystorePath: null,
-      adapter: 'claude-api',
-      anthropicModel: 'claude-opus-4-7',
+      adapter: 'groq',
+      groqModel: 'llama-3.3-70b-versatile',
       workerTrack: 'Services',
       workerMinReward: MIN_REWARD,
       workerStatePath: '/tmp/worker-test-discovery.state.json',

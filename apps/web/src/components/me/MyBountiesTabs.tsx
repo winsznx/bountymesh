@@ -30,7 +30,7 @@ export function MyBountiesTabs() {
 
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="My bounties" className="flex items-center gap-1 border-b border-slate-800">
+      <div role="tablist" aria-label="My bounties" className="flex items-center gap-1 border-b border-ash-white">
         {TABS.map(({ role, label }) => {
           const isActive = role === active;
           return (
@@ -44,16 +44,16 @@ export function MyBountiesTabs() {
               onClick={() => setActive(role)}
               className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors ${
                 isActive
-                  ? "border-cyan-400 text-cyan-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "border-digital-orange text-digital-orange"
+                  : "border-transparent text-abyssal-ink/60 hover:text-abyssal-ink"
               }`}
             >
               {label}
               <span
                 className={`rounded-full px-2 py-0.5 text-xs ${
                   isActive
-                    ? "bg-cyan-400/10 text-cyan-400"
-                    : "bg-slate-800 text-slate-500"
+                    ? "bg-digital-orange/10 text-digital-orange"
+                    : "bg-ash-white text-abyssal-ink/40"
                 }`}
               >
                 {counts[role]}
@@ -66,11 +66,11 @@ export function MyBountiesTabs() {
       <div
         role="tabpanel"
         aria-labelledby={`my-bounties-tab-${active}`}
-        className="rounded-md border border-slate-800 bg-slate-900/30"
+        className="rounded-md border border-ash-white bg-ash-white"
       >
         <div
           role="row"
-          className="hidden items-center gap-4 border-b border-slate-800 px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-400 md:grid"
+          className="hidden items-center gap-4 border-b border-ash-white px-4 py-3 text-xs font-medium uppercase tracking-wider text-abyssal-ink/60 md:grid"
           style={{ gridTemplateColumns: GRID_TEMPLATE }}
         >
           <div>ID</div>
@@ -103,15 +103,15 @@ export function MyBountiesTabs() {
 
 function LoadingRow() {
   return (
-    <div className="px-4 py-8 text-center text-sm text-slate-500">Loading…</div>
+    <div className="px-4 py-8 text-center text-sm text-abyssal-ink/40">Loading…</div>
   );
 }
 
 function ErrorRow({ message }: { message: string }) {
   return (
     <div className="px-4 py-8 text-center">
-      <p className="text-sm text-red-400">Couldn&apos;t reach indexer</p>
-      <p className="mt-1 font-mono text-xs text-slate-500">{message}</p>
+      <p className="text-sm text-digital-orange">Couldn&apos;t reach indexer</p>
+      <p className="mt-1 font-mono text-xs text-abyssal-ink/40">{message}</p>
     </div>
   );
 }
@@ -119,11 +119,11 @@ function ErrorRow({ message }: { message: string }) {
 function EmptyPosted() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 px-8 py-16 text-center">
-      <div className="text-base text-slate-300">You haven&apos;t posted any bounties yet.</div>
-      <div className="text-sm text-slate-500">Hit /post to start.</div>
+      <div className="text-base text-abyssal-ink/80">You haven&apos;t posted any bounties yet.</div>
+      <div className="text-sm text-abyssal-ink/40">Hit /post to start.</div>
       <Link
         href="/post"
-        className="mt-2 rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300"
+        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange"
       >
         Post a bounty
       </Link>
@@ -134,11 +134,11 @@ function EmptyPosted() {
 function EmptyWorker() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 px-8 py-16 text-center">
-      <div className="text-base text-slate-300">You haven&apos;t claimed any bounties yet.</div>
-      <div className="text-sm text-slate-500">Browse /bounties to find one.</div>
+      <div className="text-base text-abyssal-ink/80">You haven&apos;t claimed any bounties yet.</div>
+      <div className="text-sm text-abyssal-ink/40">Browse /bounties to find one.</div>
       <Link
         href="/bounties"
-        className="mt-2 rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300"
+        className="mt-2 rounded-md bg-digital-orange px-4 py-2 text-sm font-medium text-basalt-canvas hover:bg-digital-orange"
       >
         Browse open bounties
       </Link>

@@ -9,23 +9,31 @@ export type BountyStatus =
   | "TimedOut"
   | "Revoked";
 
-const STATUS_STYLES: Record<BountyStatus, { text: string; bg: string }> = {
-  Open: { text: "text-slate-400", bg: "bg-slate-400/10" },
-  Claimed: { text: "text-amber-400", bg: "bg-amber-400/10" },
-  Submitted: { text: "text-cyan-400", bg: "bg-cyan-400/10" },
-  Accepted: { text: "text-emerald-400", bg: "bg-emerald-400/10" },
-  Withdrawn: { text: "text-emerald-300", bg: "bg-emerald-300/10" },
-  Rejected: { text: "text-orange-400", bg: "bg-orange-400/10" },
-  Cancelled: { text: "text-red-400", bg: "bg-red-400/10" },
-  TimedOut: { text: "text-red-500", bg: "bg-red-500/10" },
-  Revoked: { text: "text-red-600", bg: "bg-red-600/10" },
+/**
+ * Themed status pill. 100px (input) radius — pill-shaped, never a chip.
+ * Each status maps to a distinct color recipe per the v2 status surface.
+ */
+const STATUS_STYLES: Record<BountyStatus, string> = {
+  // Pre-terminal (active lifecycle)
+  Open: "bg-cyber-violet text-pure-white",
+  Claimed: "bg-pixel-glare text-abyssal-ink",
+  Submitted: "bg-digital-orange text-pure-white",
+  Accepted: "bg-ash-white text-abyssal-ink border-2 border-abyssal-ink",
+  Withdrawn: "bg-abyssal-ink text-pure-white",
+  // v2 terminal states — each visually distinct
+  Cancelled:
+    "bg-basalt-canvas text-abyssal-ink/60 border border-abyssal-ink/30",
+  Rejected:
+    "bg-pure-white text-digital-orange border-2 border-digital-orange",
+  TimedOut:
+    "bg-pure-white text-abyssal-ink/60 border-2 border-abyssal-ink/30",
+  Revoked: "bg-abyssal-ink text-pixel-glare",
 };
 
 export function StatusPill({ status }: { status: BountyStatus }) {
-  const { text, bg } = STATUS_STYLES[status];
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${text} ${bg}`}
+      className={`inline-flex items-center rounded-input px-3 py-1 text-body-sm font-medium leading-body-sm ${STATUS_STYLES[status]}`}
     >
       {status}
     </span>

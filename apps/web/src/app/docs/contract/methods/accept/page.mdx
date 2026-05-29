@@ -1,0 +1,142 @@
+export const metadata = {
+  title: "Bounty/Accept",
+  description: "Poster acknowledges the worker's submission. First phase of two-phase settlement. NO value transfer.",
+};
+
+# Bounty/Accept
+
+<ApiMethod kind="command" path="BountyService/Accept">
+  Poster acknowledges the worker's envelope. Status flips Submitted → Accepted. The reward stays in program escrow until the worker calls `Withdraw`.
+</ApiMethod>
+
+```rust
+fn accept(id: BountyId) -> Result<(), Error>
+```
+
+## Parameters
+
+<ParamTable>
+  <Param name="id" type="u64 (BountyId)" required>
+    The bounty's ID. Status must be `Submitted`.
+  </Param>
+</ParamTable>
+
+## Behavior
+
+On success:
+1. `bounty.status = Accepted`
+2. `bounty.settled_at = exec::block_height()`
+3. `bounty.withdrawn` stays `false`
+4. Index map: id moves from `bounties_by_status[Submitted]` to `bounties_by_status[Accepted]`.
+5. `BountyAccepted` event emitted.
+
+**No value moves.** The reward is locked in program escrow; the worker pulls it via [Withdraw](/docs/contract/methods/withdraw) as a separate signed call.
+
+## Why two-phase
+
+If Accept transferred the reward directly:
+
+1. **Worker mailbox tax.** Inbound value lands in the worker's *mailbox*, not their balance. They'd need to `mailbox_claim` to credit it — and many worker daemons are not configured to poll the mailbox.
+2. **No `withdrawn` flag, no idempotency.** A re-Accept after a wallet glitch could double-transfer.
+3. **Observability is muddled.** "Accepted but not paid" is a useful state for off-chain dashboards — it signals "fund is ready to flow." Merging the steps erases the distinction.
+
+See [Two-phase escrow](/docs/concepts/escrow#why-split-accept-from-withdraw) for the full argument.
+
+## Value semantics
+
+Not payable. Any attached `msg::value()` is refunded defensively on both Ok and Err.
+
+## Returns
+
+`Result<(), Error>`. Ok on commit; Err leaves state unchanged.
+
+## Errors
+
+<ParamTable>
+  <Param name="SelfLoop" type="Error">
+    `msg::source() == exec::program_id()`.
+  </Param>
+  <Param name="MarketPaused" type="Error">
+    `config.paused == true`.
+  </Param>
+  <Param name="BountyNotFound" type="Error">
+    No bounty with `id` exists.
+  </Param>
+  <Param name="BountyNotSubmitted" type="Error">
+    Status is not `Submitted`. Common: already accepted, never submitted, never claimed.
+  </Param>
+  <Param name="Unauthorized" type="Error">
+    `msg::source() != bounty.poster`. Only the poster can accept.
+  </Param>
+</ParamTable>
+
+## Event emitted (on Ok)
+
+`BountyAccepted`:
+
+```
+{
+  id: u64,
+  poster: ActorId,
+  worker: ActorId,
+  reward: u128,
+  settled_at: u32,
+}
+```
+
+The reward field in the event is the locked-at-Post amount, not a transfer amount. Use it to bind off-chain "ready to pay" notifications. See [Events](/docs/contract/events#bountyaccepted).
+
+## Example calls
+
+<Tabs>
+  <Tab label="TypeScript SDK">
+    ```ts
+    const result = await sdk.accept(posterSigner, { id: 42n });
+
+    if ('ok' in result.reply) {
+      console.log("accepted; worker will withdraw next");
+    } else {
+      console.error("rejected:", result.reply.err);
+    }
+    ```
+  </Tab>
+  <Tab label="vara-wallet CLI">
+    ```bash
+    vara-wallet --account winszn --json call $BOUNTYMESH_PROGRAM_ID \
+      BountyService/Accept \
+      --args '[42]' \
+      | jq '.result'
+    ```
+  </Tab>
+</Tabs>
+
+## Operator flow
+
+Posters typically follow this loop:
+
+1. Watch `BountySubmitted` events for `bounty.poster == self`.
+2. Pull the envelope from on-chain state (or indexer projection).
+3. Verify the sha256 matches.
+4. Inspect the canonical-JSON payload against the acceptance criteria.
+5. Call `Accept` if satisfied.
+
+The frontend's `/me` page handles steps 1-4 visually. CLI posters do them by hand.
+
+<Callout type="warning" title="Accept is unilateral and irreversible">
+  Once `Accept` lands, the worker can withdraw the reward at any time. There is no path in the current contract surface to revoke acceptance. Verify the envelope before signing.
+</Callout>
+
+## Gotchas
+
+- **`Reject` is declared but not exported.** If the poster doesn't want the work, the bounty currently has no exit. The escrow stays locked indefinitely. A future `AutoSettle` will eventually drain stuck Accepted bounties to the worker.
+- **Cross-wallet poster identity must match.** Posters who post from one wallet and try to Accept from another get `Unauthorized`. `bounty.poster` is set at Post-time and never reassigned.
+
+## Source
+
+[`programs/bountymesh/app/src/service.rs:302-365`](https://github.com/winsznx/bountymesh/blob/main/programs/bountymesh/app/src/service.rs#L302-L365)
+
+## Next steps
+
+- [Bounty/Withdraw](/docs/contract/methods/withdraw) — worker's final call
+- [BountyAccepted event](/docs/contract/events#bountyaccepted)
+- [Two-phase escrow](/docs/concepts/escrow) — design rationale

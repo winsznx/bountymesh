@@ -15,7 +15,7 @@ import { BountyRow } from "./BountyRow";
 import { BountyCard } from "./BountyCard";
 
 export const GRID_TEMPLATE =
-  "60px minmax(0, 1fr) 110px 100px 200px 200px 110px";
+  "70px minmax(0, 1fr) 130px 110px 200px 210px 110px";
 
 const PAGE_SIZE = 25;
 
@@ -53,10 +53,10 @@ export function BountyTable() {
   const showingTo = Math.min((page + 1) * PAGE_SIZE, totalCount);
 
   return (
-    <div className="rounded-md border border-slate-800 bg-slate-900/30">
+    <div className="space-y-4">
       <div
         role="row"
-        className="hidden items-center gap-4 border-b border-slate-800 px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-400 md:grid"
+        className="hidden items-center gap-4 px-6 py-3 text-xs font-medium uppercase tracking-wider text-abyssal-ink/60 md:grid"
         style={{ gridTemplateColumns: GRID_TEMPLATE }}
       >
         <SortHeader label="ID" sortKey="id" active={sortKey} dir={sortDir} onClick={toggleSort} />
@@ -75,27 +75,29 @@ export function BountyTable() {
       ) : bounties.length === 0 ? (
         <EmptyState />
       ) : (
-        bounties.map((b) => (
-          <Fragment key={b.id.toString()}>
-            <BountyRow bounty={b} />
-            <BountyCard bounty={b} />
-          </Fragment>
-        ))
+        <div className="space-y-3">
+          {bounties.map((b) => (
+            <Fragment key={b.id.toString()}>
+              <BountyRow bounty={b} />
+              <BountyCard bounty={b} />
+            </Fragment>
+          ))}
+        </div>
       )}
 
       {!error && !isLoading && bounties.length > 0 && (
-        <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3 text-xs text-slate-400">
+        <div className="flex items-center justify-between rounded-card bg-ash-white px-6 py-4 text-xs text-abyssal-ink/60">
           <div>
-            Showing <span className="text-slate-200">{showingFrom}</span>–
-            <span className="text-slate-200">{showingTo}</span> of{" "}
-            <span className="text-slate-200">{totalCount}</span>
+            Showing <span className="font-medium text-abyssal-ink">{showingFrom}</span>–
+            <span className="font-medium text-abyssal-ink">{showingTo}</span> of{" "}
+            <span className="font-medium text-abyssal-ink">{totalCount}</span>
           </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-800 px-2 py-1 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+              className="inline-flex items-center gap-1 rounded-pill border border-abyssal-ink/20 px-3 py-1 font-medium text-abyssal-ink transition-colors hover:bg-pure-white disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronLeft className="h-3 w-3" /> Prev
             </button>
@@ -106,7 +108,7 @@ export function BountyTable() {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-800 px-2 py-1 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+              className="inline-flex items-center gap-1 rounded-pill border border-abyssal-ink/20 px-3 py-1 font-medium text-abyssal-ink transition-colors hover:bg-pure-white disabled:cursor-not-allowed disabled:opacity-30"
             >
               Next <ChevronRight className="h-3 w-3" />
             </button>
@@ -145,8 +147,8 @@ function SortHeader({
         aria-label={`Sort by ${label}, ${
           isActive ? `currently ${ariaSort}` : "not sorted"
         }`}
-        className={`inline-flex items-center gap-1 text-left hover:text-cyan-300 ${
-          isActive ? "text-cyan-400" : "text-slate-400"
+        className={`inline-flex items-center gap-1 text-left transition-colors hover:text-abyssal-ink ${
+          isActive ? "text-digital-orange" : "text-abyssal-ink/60"
         }`}
       >
         {label}
@@ -158,22 +160,22 @@ function SortHeader({
 
 function SkeletonRows({ count }: { count: number }) {
   return (
-    <div>
+    <div className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
           role="row"
           aria-busy="true"
-          className="hidden items-center gap-4 border-b border-slate-800/70 px-4 py-3 md:grid"
+          className="hidden items-center gap-4 rounded-card bg-ash-white px-6 py-5 md:grid"
           style={{ gridTemplateColumns: GRID_TEMPLATE }}
         >
-          <div className="h-4 w-10 animate-pulse rounded-sm bg-slate-800" />
-          <div className="h-4 w-3/4 animate-pulse rounded-sm bg-slate-800" />
-          <div className="h-6 w-20 animate-pulse rounded-full bg-slate-800" />
-          <div className="h-6 w-16 animate-pulse rounded-full bg-slate-800" />
-          <div className="h-8 w-32 animate-pulse rounded-sm bg-slate-800" />
-          <div className="h-6 w-28 animate-pulse rounded-sm bg-slate-800" />
-          <div className="h-3 w-20 animate-pulse rounded-sm bg-slate-800" />
+          <div className="h-6 w-12 animate-pulse rounded-sm bg-basalt-canvas" />
+          <div className="h-4 w-3/4 animate-pulse rounded-sm bg-basalt-canvas" />
+          <div className="h-7 w-24 animate-pulse rounded-input bg-basalt-canvas" />
+          <div className="h-6 w-20 animate-pulse rounded-input bg-basalt-canvas" />
+          <div className="h-8 w-32 animate-pulse rounded-sm bg-basalt-canvas" />
+          <div className="h-6 w-28 animate-pulse rounded-sm bg-basalt-canvas" />
+          <div className="h-3 w-20 animate-pulse rounded-sm bg-basalt-canvas" />
         </div>
       ))}
     </div>
@@ -182,12 +184,14 @@ function SkeletonRows({ count }: { count: number }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 px-8 py-16 text-center">
-      <div className="text-base text-slate-300">No bounties posted yet.</div>
-      <div className="text-sm text-slate-500">Be the first.</div>
+    <div className="flex flex-col items-center justify-center gap-4 rounded-card bg-ash-white px-8 py-16 text-center">
+      <div className="font-display text-heading-sm tracking-heading-sm text-abyssal-ink">
+        No bounties posted yet.
+      </div>
+      <div className="text-sm text-abyssal-ink/60">Be the first.</div>
       <Link
         href="/post"
-        className="mt-2 rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300"
+        className="mt-2 inline-flex items-center rounded-pill bg-digital-orange px-5 py-2 text-sm font-medium text-pure-white transition-opacity hover:opacity-90"
       >
         Post a bounty
       </Link>
@@ -197,13 +201,17 @@ function EmptyState() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-8 py-12 text-center">
-      <div className="text-base font-medium text-red-400">Couldn&apos;t reach indexer</div>
-      <div className="max-w-lg wrap-break-word font-mono text-xs text-slate-500">{message}</div>
+    <div className="flex flex-col items-center justify-center gap-3 rounded-card bg-ash-white px-8 py-12 text-center">
+      <div className="font-display text-heading-sm tracking-heading-sm text-digital-orange">
+        Couldn&apos;t reach indexer
+      </div>
+      <div className="max-w-lg wrap-break-word font-mono text-xs text-abyssal-ink/60">
+        {message}
+      </div>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-2 rounded-md border border-red-400/40 bg-red-400/10 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-400/20"
+        className="mt-2 inline-flex items-center rounded-pill border-2 border-digital-orange bg-pure-white px-5 py-2 text-sm font-medium text-digital-orange transition-colors hover:bg-digital-orange hover:text-pure-white"
       >
         Retry
       </button>

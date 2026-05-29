@@ -10,22 +10,24 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/me", label: "Me" },
   { href: "/stats", label: "Stats" },
   { href: "/agents", label: "Agents" },
+  { href: "/docs/introduction", label: "Docs" },
   { href: "/about", label: "About" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
+  if (href === "/docs/introduction") return pathname.startsWith("/docs");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function NavBar() {
   const pathname = usePathname();
   return (
-    <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3">
+    <header className="bg-basalt-canvas">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-5">
         <Link
           href="/"
-          className="font-mono text-base font-semibold text-slate-100 hover:text-cyan-400"
+          className="font-display text-2xl tracking-heading-sm text-abyssal-ink transition-opacity hover:opacity-70"
         >
           bountymesh
         </Link>
@@ -36,16 +38,13 @@ export function NavBar() {
               <Link
                 key={href}
                 href={href}
-                className={`relative px-3 py-1.5 transition-colors ${
+                className={`relative px-3 py-1.5 font-medium transition-colors ${
                   active
-                    ? "text-cyan-400"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "text-digital-orange"
+                    : "text-abyssal-ink/70 hover:text-abyssal-ink"
                 }`}
               >
                 {label}
-                {active && (
-                  <span className="absolute inset-x-3 -bottom-[13px] h-[2px] bg-cyan-400" aria-hidden />
-                )}
               </Link>
             );
           })}

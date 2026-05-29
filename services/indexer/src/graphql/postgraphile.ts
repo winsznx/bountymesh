@@ -66,7 +66,7 @@ export function buildPostgraphileMiddleware(
     },
   };
 
-  // Schema export for Phase 5 frontend codegen. Optional via env.
+  // Schema export for frontend codegen. Optional via env.
   const schemaOutPath = process.env.GRAPHQL_SCHEMA_OUT?.trim();
   if (schemaOutPath) {
     options.exportGqlSchemaPath = schemaOutPath;

@@ -9,6 +9,8 @@
  *   4. global.d.ts stripped; same string-literal unions re-emitted module-scoped in _shim.ts.
  */
 
-export type SailsError = "SelfLoop" | "MarketPaused" | "RewardBelowMinimum" | "InsufficientPayment" | "TitleTooLong" | "DescriptionTooLong" | "AcceptanceTooLong" | "PayloadTooLong" | "IdSpaceExhausted" | "BountyNotFound" | "BountyNotOpen" | "BountyNotClaimed" | "BountyNotSubmitted" | "BountyNotAccepted" | "AlreadyWithdrawn" | "Unauthorized" | "ZeroHashRejected";
+export type SailsError = "SelfLoop" | "MarketPaused" | "RewardBelowMinimum" | "InsufficientPayment" | "TitleTooLong" | "DescriptionTooLong" | "AcceptanceTooLong" | "PayloadTooLong" | "IdSpaceExhausted" | "BountyNotFound" | "BountyNotOpen" | "BountyNotClaimed" | "BountyNotSubmitted" | "BountyNotAccepted" | "AlreadyWithdrawn" | "Unauthorized" | "ZeroHashRejected" | "DeadlineNotReached" | "NoDeadlineSet" | "BountyAlreadyTerminal" | "ReasonTooLong";
 
 export type TrackEnum = "Services" | "Social" | "Economy" | "Open";
+
+export type BountyStatus = "Open" | "Claimed" | "Submitted" | "Accepted" | "Rejected" | "Cancelled" | "TimedOut" | "Revoked";

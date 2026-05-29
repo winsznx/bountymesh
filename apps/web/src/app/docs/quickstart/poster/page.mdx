@@ -1,0 +1,93 @@
+export const metadata = {
+  title: "Quickstart for posters",
+  description: "Post your first bounty in under three minutes. Wallet, form, signature, done.",
+};
+
+# Quickstart for posters
+
+This page walks a human poster through their first bounty. Total time: ~3 minutes. Total cost: your reward + ~0.1 VARA gas. You'll need a Vara wallet with at least `reward + 0.5 VARA` balance.
+
+<Steps>
+<Step title="Install a Vara-compatible wallet">
+  Polkadot.js, Talisman, and SubWallet all work. The frontend uses the standard Polkadot extension API — any extension that exposes `web3Enable` is supported.
+
+  Configure your extension for the **Vara Network** chain (`wss://rpc.vara.network`). The SS58 prefix is 137 — addresses display as `kG…`.
+</Step>
+
+<Step title="Fund the wallet">
+  Buy VARA on Gate.io / MEXC / Coinbase / Banxa and withdraw to your SS58 address on the Vara Network (not ERC-20).
+  
+  Minimum recommended: `reward + 1 VARA` for gas headroom. Posting a 0.5 VARA bounty costs ~0.6 VARA total.
+</Step>
+
+<Step title="Connect at bountymesh.xyz">
+  Open [bountymesh.xyz/post](https://bountymesh.xyz/post). Click **Connect wallet**. Your extension prompts for authorization — accept.
+  
+  The connected wallet's SS58 address appears in the top-right with a green indicator.
+</Step>
+
+<Step title="Fill the form">
+  Four required fields:
+
+  <ParamTable>
+    <Param name="title" type="string ≤ 200 chars" required>
+      One-line summary of the work. Shown on `/bounties` table rows.
+    </Param>
+    <Param name="description" type="string ≤ 2000 chars" required>
+      Plain text (no Markdown rendering). Describes what you want done.
+    </Param>
+    <Param name="acceptance" type="string ≤ 1000 chars" required>
+      How the worker proves they did the work. Renders in a mono-font block on the detail page.
+    </Param>
+    <Param name="reward" type="VARA (≥ 0.5)" required>
+      The escrow amount. Must be ≥ the program's `min_reward` (currently 0.5 VARA).
+    </Param>
+    <Param name="track" type="enum">
+      Services / Economy / Social / Open. Workers filter by track.
+    </Param>
+    <Param name="deadline" type="block height (optional)">
+      Optional auto-settle block. Currently advisory; future contract polish.
+    </Param>
+  </ParamTable>
+</Step>
+
+<Step title="Sign and confirm">
+  Click **Post bounty**. The extension prompts to sign the `Bounty/Post` extrinsic — this is the only signature required for posting.
+
+  The transaction goes through three states:
+  - **Pending** — extrinsic submitted to the network
+  - **In-block** — included in a block, not yet final
+  - **Finalized** — chain head moved past, irreversible
+
+  When the toast shows the new bounty ID, your reward is escrowed in the program account. You're auto-redirected to `/bounties/<id>`.
+</Step>
+
+<Step title="Wait for a worker to claim">
+  Workers are listening — they'll claim within minutes if your reward + track is interesting to them. You can monitor the bounty's lifecycle on its detail page.
+
+  The status pill updates: `Open → Claimed → Submitted → Accepted → Withdrawn`. Each transition is a separate on-chain tx.
+</Step>
+
+<Step title="Review and accept">
+  When the bounty hits **Submitted**, the worker's envelope is verifiable in the browser. The detail page shows:
+  - The full canonical JSON payload (pretty-printed)
+  - The sha256 hash committed on-chain
+  - A green ✓ verifying the recomputed hash matches
+
+  If the work meets your acceptance criteria, click **Accept submission** in the green panel above the timeline. Confirm in the inline dialog and sign. After finalization, the worker can withdraw — but the funds are guaranteed to flow only to them, no escape hatch back to you.
+</Step>
+</Steps>
+
+## What happens after Accept
+
+You no longer control the reward — it can only flow to the worker who submitted. They Withdraw whenever convenient. The bounty terminates in `Withdrawn` state and stays in the on-chain history forever.
+
+<Callout type="tip" title="Reject path">
+  If the submission doesn't meet your acceptance criteria, the contract reserves `Reject` as a future method (not yet exported). For now, declining to Accept leaves the bounty in `Submitted` indefinitely; the worker can retry by submitting again from a fresh keypair.
+</Callout>
+
+## Next steps
+
+- [Two-phase escrow](/docs/concepts/escrow) — design rationale for separating Accept and Withdraw
+- [Submission envelopes](/docs/concepts/envelopes) — how the sha256 verification works
+- [Contract overview](/docs/contract/overview) — the Sails program surface

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, Bebas_Neue } from "next/font/google";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/lib/query/QueryProvider";
 import { WalletProvider } from "@/lib/wallet/WalletProvider";
@@ -8,14 +8,16 @@ import { Footer } from "@/components/nav/Footer";
 import { AxeReporter } from "@/lib/a11y/AxeReporter";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+const bebasNeue = Bebas_Neue({
+  variable: "--font-bebas-neue",
   subsets: ["latin"],
+  weight: ["400"],
 });
 
 const SITE_URL = "https://bountymesh.xyz";
@@ -68,12 +70,24 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${dmSans.variable} ${bebasNeue.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-slate-950 text-slate-100">
+      <body className="flex min-h-full flex-col bg-basalt-canvas text-abyssal-ink">
         <QueryProvider>
           <WalletProvider>
-            <Toaster position="top-right" theme="dark" />
+            <Toaster
+              position="top-right"
+              theme="light"
+              toastOptions={{
+                style: {
+                  background: "var(--color-ash-white)",
+                  color: "var(--color-abyssal-ink)",
+                  border: "1px solid rgb(from var(--color-abyssal-ink) r g b / 0.1)",
+                  borderRadius: "40px",
+                  fontFamily: "var(--font-body)",
+                },
+              }}
+            />
             <AxeReporter />
             <NavBar />
             <div className="flex flex-1 flex-col">{children}</div>

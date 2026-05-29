@@ -7,14 +7,14 @@ pre-validation as the TS SDK (zero-hash rejection).
 
 Standard library only. No pip deps.
 
-Verified empirically against vara-wallet 0.19.0 and bountymesh.opt.wasm built
-from this repo's Phase 1 contract. Response shapes:
+Verified empirically against vara-wallet 0.19.0 and the BountyMesh contract
+(bountymesh.opt.wasm). Response shapes:
   - call: {"txHash","blockHash","blockNumber","messageId","voucherId",
            "result":{"kind":"Ok"|"Err","value":...},"events":[]}
   - watch (NDJSON, one line per event): {"event":"UserMessageSent","decoded":
            {"kind":"sails","service":"BountyService","event":<name>,"data":{...}}, ...}
 
-Hard rules carried from Phase A probes:
+Hard rules (vara-wallet invocation contract):
   - --units raw is appended whenever --value is set (post only). Without --units raw,
     vara-wallet interprets --value as VARA (decimal), which would balloon a 2-VARA
     reward into 2-trillion VARA. The _call_args helper enforces this.
@@ -306,7 +306,7 @@ class BountyMeshClient:
     # NOTE: vara-wallet's `watch` NDJSON output exposes messageId but NOT blockHash
     # or txHash per event (limitation of the watch-stream protocol). Event payloads
     # dispatched here include `messageId`; consumers needing tx-level metadata should
-    # correlate via the indexer (Phase 3) or directly via @polkadot/api in TS.
+    # correlate via the indexer GraphQL or directly via @polkadot/api in TS.
 
     def on_bounty_posted(
         self, callback: Callable[[dict], None], filter: Optional[dict] = None

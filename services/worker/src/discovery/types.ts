@@ -20,8 +20,8 @@ export interface Candidate {
   deadline: number | null;
   // Catchup-sourced candidates carry null blockHash — the bounties projection
   // doesn't include the post-block-hash (only postTxHash). Live-sourced from
-  // the SDK carry the actual blockHash. Schema gap surfaced as a P3.4b
-  // proposal item (either add post_block_hash column or accept null + log).
+  // the SDK carry the actual blockHash. Schema gap: either add post_block_hash
+  // column or accept null + log.
   blockHash: `0x${string}` | null;
   txHash: `0x${string}` | null;
   phase: 'live' | 'catchup' | 'resume';

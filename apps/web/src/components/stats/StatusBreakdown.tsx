@@ -12,8 +12,8 @@ const STATUS_ORDER: { status: BountyStatus; key: keyof StatsCounts }[] = [
 
 export function StatusBreakdown({ counts }: { counts: StatsCounts }) {
   return (
-    <section className="space-y-4 rounded-md border border-slate-800 bg-slate-900/30 p-6">
-      <h2 className="text-xs font-medium uppercase tracking-wider text-slate-400">
+    <section className="space-y-4 rounded-md border border-ash-white bg-ash-white p-6">
+      <h2 className="text-xs font-medium uppercase tracking-wider text-abyssal-ink/60">
         Status breakdown
       </h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -23,12 +23,12 @@ export function StatusBreakdown({ counts }: { counts: StatsCounts }) {
           return (
             <div
               key={status}
-              className={`flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/50 px-4 py-3 transition-opacity ${
+              className={`flex items-center justify-between rounded-md border border-ash-white bg-basalt-canvas px-4 py-3 transition-opacity ${
                 isZero ? "opacity-50" : "opacity-100"
               }`}
             >
               <StatusPill status={status} />
-              <span className="font-mono text-2xl text-slate-100">{count}</span>
+              <span className="font-mono text-2xl text-abyssal-ink">{count}</span>
             </div>
           );
         })}

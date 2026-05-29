@@ -1,14 +1,18 @@
 import type { GearApi } from '@gear-js/api';
 import type { HexString } from '@gear-js/api/types';
 import type { TypeRegistry } from '@polkadot/types';
-import type { BountyAcceptedEvent, BountyAcceptedFilter, BountyClaimedEvent, BountyClaimedFilter, BountyPostedEvent, BountyPostedFilter, BountySubmittedEvent, BountySubmittedFilter, BountyWithdrawnEvent, BountyWithdrawnFilter, Unsubscribe } from './types.js';
-export type EventName = 'BountyPosted' | 'BountyClaimed' | 'BountySubmitted' | 'BountyAccepted' | 'BountyWithdrawn';
+import type { BountyAcceptedEvent, BountyAcceptedFilter, BountyCancelledEvent, BountyCancelledFilter, BountyClaimedEvent, BountyClaimedFilter, BountyPostedEvent, BountyPostedFilter, BountyRejectedEvent, BountyRejectedFilter, BountyRevokedEvent, BountyRevokedFilter, BountySubmittedEvent, BountySubmittedFilter, BountyTimedOutEvent, BountyTimedOutFilter, BountyWithdrawnEvent, BountyWithdrawnFilter, Unsubscribe } from './types.js';
+export type EventName = 'BountyPosted' | 'BountyClaimed' | 'BountySubmitted' | 'BountyAccepted' | 'BountyWithdrawn' | 'BountyCancelled' | 'BountyRejected' | 'BountyTimedOut' | 'BountyRevoked';
 export interface EventTypeMap {
     BountyPosted: BountyPostedEvent;
     BountyClaimed: BountyClaimedEvent;
     BountySubmitted: BountySubmittedEvent;
     BountyAccepted: BountyAcceptedEvent;
     BountyWithdrawn: BountyWithdrawnEvent;
+    BountyCancelled: BountyCancelledEvent;
+    BountyRejected: BountyRejectedEvent;
+    BountyTimedOut: BountyTimedOutEvent;
+    BountyRevoked: BountyRevokedEvent;
 }
 export interface FilterTypeMap {
     BountyPosted: BountyPostedFilter;
@@ -16,11 +20,15 @@ export interface FilterTypeMap {
     BountySubmitted: BountySubmittedFilter;
     BountyAccepted: BountyAcceptedFilter;
     BountyWithdrawn: BountyWithdrawnFilter;
+    BountyCancelled: BountyCancelledFilter;
+    BountyRejected: BountyRejectedFilter;
+    BountyTimedOut: BountyTimedOutFilter;
+    BountyRevoked: BountyRevokedFilter;
 }
 /**
  * Internal event multiplexer for BountyMeshClient.
  *
- * Design (per MASTER_PRD §10 + Phase 2 senior-review concern #5):
+ * Design:
  *   - ONE underlying chain-head subscription per BountyMeshClient instance,
  *     opened lazily on the first .on() call across any event type.
  *   - Per-event subscription registry (5 typed events). Each registration

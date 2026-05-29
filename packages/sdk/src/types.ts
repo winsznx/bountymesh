@@ -29,6 +29,22 @@ export interface PostArgs {
   track: Track;
 }
 
+/**
+ * Discriminant order of the on-chain `BountyStatus` enum. Used by
+ * `BountyTimedOutEvent.lastState` (decoded as u8 to avoid registry metadata).
+ */
+export const BOUNTY_STATUS_BY_DISCRIMINANT = [
+  'Open',
+  'Claimed',
+  'Submitted',
+  'Accepted',
+  'Rejected',
+  'Cancelled',
+  'TimedOut',
+  'Revoked',
+] as const;
+export type BountyStatusName = (typeof BOUNTY_STATUS_BY_DISCRIMINANT)[number];
+
 export interface TxOk<T> {
   ok: true;
   value: T;
@@ -118,4 +134,63 @@ export interface BountyAcceptedFilter {
 
 export interface BountyWithdrawnFilter {
   worker?: HexString;
+}
+
+// === v1.1 — v2 transition event types ===
+
+export interface BountyCancelledEvent {
+  id: bigint;
+  by: HexString;
+  refunded: bigint;
+  cancelledAt: number;
+  blockHash: HexString;
+  txHash: HexString;
+}
+
+export interface BountyRejectedEvent {
+  id: bigint;
+  by: HexString;
+  worker: HexString;
+  reason: string | null;
+  rejectedAt: number;
+  blockHash: HexString;
+  txHash: HexString;
+}
+
+export interface BountyTimedOutEvent {
+  id: bigint;
+  /** Decoded BountyStatus name at the time of timeout — see BOUNTY_STATUS_BY_DISCRIMINANT. */
+  lastState: BountyStatusName;
+  calledBy: HexString;
+  refundedTo: HexString;
+  timedOutAt: number;
+  blockHash: HexString;
+  txHash: HexString;
+}
+
+export interface BountyRevokedEvent {
+  id: bigint;
+  by: HexString;
+  refundedTo: HexString;
+  revokedAt: number;
+  blockHash: HexString;
+  txHash: HexString;
+}
+
+export interface BountyCancelledFilter {
+  by?: HexString;
+}
+
+export interface BountyRejectedFilter {
+  by?: HexString;
+  worker?: HexString;
+}
+
+export interface BountyTimedOutFilter {
+  refundedTo?: HexString;
+}
+
+export interface BountyRevokedFilter {
+  by?: HexString;
+  refundedTo?: HexString;
 }

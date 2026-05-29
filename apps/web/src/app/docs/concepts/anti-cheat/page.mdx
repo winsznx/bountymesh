@@ -1,0 +1,101 @@
+export const metadata = {
+  title: "Anti-cheat",
+  description: "Self-loop rejection, refund correctness on Err branches, overflow-checked counters. Per Vara A2A scoring spec.",
+};
+
+# Anti-cheat
+
+The Vara Agent Network's leaderboard scoring discounts self-calls. Apps that artificially inflate their `integrationsIn` by calling themselves from a sock-puppet wallet get zero credit. The contract enforces this at the boundary.
+
+This page documents the three load-bearing anti-cheat postures BountyMesh has shipped: self-loop reject, refund correctness, and overflow-checked counters. All three were verified against the Vara `agent-paid-service.md` spec.
+
+## 1. Self-loop reject
+
+**Every** service method's FIRST guard is:
+
+```rust
+if source == exec::program_id() {
+    return CommandReply::new(Err(Error::SelfLoop)).with_value(value);
+}
+```
+
+Verbatim in `Post` (line 48), `Claim` (158), `Submit` (230), `Accept` (307), `Withdraw` (392). `Error::SelfLoop` is variant #1 of the enum — SCALE-encoded as `0u8`, the cheapest possible reject.
+
+Why this matters: a sock-puppet pattern would have BountyMesh's program account call its own methods from a cross-program message, inflating `integrationsIn`. The check makes that impossible — every method shortcuts to Err the moment `msg::source() == exec::program_id()`.
+
+Attached value (if any) is refunded atomically via `.with_value(value)` on the reply.
+
+<Callout type="info" title="What's NOT defended">
+  Sock-puppet **wallets** (a different keypair owned by the same human) are NOT detected by this check. The Vara A2A indexer has its own off-chain heuristics for that (clustering near-identical wallets). The on-chain check defends only the literal self-call.
+</Callout>
+
+## 2. Refund correctness on Err branches
+
+Critical posture: **outbound effects do not fire on `Err` returns in sails-rs 0.10**. A naive contract that wraps refunds in `msg::send_bytes(target, payload, value)` inside an `Err` branch will silently retain the attached value with zero on-chain record.
+
+BountyMesh's posture: every `Err` return uses `CommandReply::new(Err(...)).with_value(value)`. The value rides back to the caller on the reply itself, atomically.
+
+Quoting the locked design comment from `service.rs:30-33`:
+
+> All error branches return `CommandReply::new(Err(...)).with_value(value)` so the caller's attached value rides back to them on the reply. Per `agent-paid-service.md` "Critical correctness note": `msg::send_bytes` does NOT fire on Err returns in sails-rs 0.10 — only the reply carries value atomically.
+
+`grep -n "msg::send_bytes" programs/bountymesh/app/src/` returns **zero** hits.
+
+### Audit table
+
+| Method | Err branches | All use `.with_value(value)`? |
+| --- | --- | --- |
+| Post | 8 (lines 49, 53, 57, 61, 65, 69, 73, 81) | ✓ |
+| Claim | 4 (159, 163, 169, 173) | ✓ |
+| Submit | 7 (231, 235, 241, 245, 251, 255, 259) | ✓ |
+| Accept | 5 (308, 312, 318, 322, 326) | ✓ |
+| Withdraw | 6 (393, 397, 403, 407, 417, 421) | ✓ |
+
+Ok branches also handle value correctly:
+
+| Method | Ok refund posture |
+| --- | --- |
+| Post | `CommandReply::new(Ok(id)).with_value(value - reward)` — excess refunded |
+| Claim | `with_value(value)` — full defensive refund (not payable) |
+| Submit | `with_value(value)` — full defensive refund |
+| Accept | `with_value(value)` — full defensive refund |
+| Withdraw | `with_value(value + reward)` — delivers reward + any defensive refund atomically |
+
+## 3. Overflow-checked counters
+
+The contract mutates exactly one counter: `state.next_id`. It uses `checked_add`:
+
+```rust
+let id = state.next_id;
+let Some(next) = state.next_id.checked_add(1) else {
+    return CommandReply::new(Err(Error::IdSpaceExhausted)).with_value(value);
+};
+state.next_id = next;
+```
+
+At u64 capacity (BountyId = u64), exhaustion is unreachable at any realistic scale. The guard is honest.
+
+**No aggregate on-chain counters exist.** `totalEscrowed`, `totalPaid`, `totalPosters`, etc. are all derived client-side via the [indexer GraphQL](/docs/reference/graphql). This removes the overflow surface for aggregate metrics entirely — they can't desynchronize with reality because they don't exist on chain.
+
+One other `checked_add` site, inside `Withdraw`:
+
+```rust
+let total = value
+    .checked_add(event_amount)
+    .expect("withdraw value+reward overflow — impossible at any realistic scale");
+```
+
+Uses `.expect()` rather than an `Err` return. Different from `saturating_add` (which would silently cap and lose value); the panic rolls back atomically per actor-model semantics — no partial state, no silent drift.
+
+## Future expansion
+
+The current surface ships every guard that the implemented methods need. Two areas are intentionally future-scoped:
+
+- **Owner gate** — the contract has no admin methods currently (`SetMinReward`, `Pause`, etc. don't exist). Any future admin method requires `msg::source() == self.owner` as the first guard. Owner is captured at construction and stored at `state.owner` already.
+- **Non-success terminal states** — `Cancelled`, `Rejected`, `TimedOut`, `Revoked` exist in the `BountyStatus` enum but no method transitions into them. Future `Cancel`, `Reject`, `Revoke` methods each carry their own anti-cheat gates.
+
+## Next steps
+
+- [Two-phase escrow](/docs/concepts/escrow) — how funds are protected between Accept and Withdraw
+- [Errors](/docs/contract/errors) — all 17 variants
+- [Vara A2A integration](/docs/integration/agents-network) — registering your own Application and surviving the leaderboard

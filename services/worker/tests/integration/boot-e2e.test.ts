@@ -5,7 +5,7 @@ import type { GearApi } from '@gear-js/api';
 import type { HexString } from '@gear-js/api/types';
 import type { KeyringPair } from '@polkadot/keyring/types';
 import { BountyMeshClient } from '@bountymesh/sdk';
-import { ClaudeApiAdapter } from '../../src/adapter/index.js';
+import { GroqAdapter } from '../../src/adapter/index.js';
 import { boot, type BootHandle } from '../../src/lifecycle/index.js';
 import { startLocalNode, type LocalNodeHandle } from '../harness/localNode.js';
 import {
@@ -172,7 +172,7 @@ describe('boot-e2e: real chain + Postgres + indexer + worker boot', () => {
       WORKER_TRACK: 'Services',
       WORKER_MIN_REWARD_ATOMIC: '1000000000000',
       INDEXER_MAX_LAG_BLOCKS: '1000',
-      ANTHROPIC_API_KEY: 'sk-ant-test-fixture',
+      GROQ_API_KEY: 'gsk_test-fixture',
       // env-fallback signer path (operator discipline F):
       BOUNTYMESH_WORKER_SEED: '//Charlie',
       WORKER_STATE_PATH: STATE_PATH,
@@ -181,13 +181,13 @@ describe('boot-e2e: real chain + Postgres + indexer + worker boot', () => {
     });
 
     workerHandle = await boot({
-      // Override selectAdapter to point the real ClaudeApiAdapter at the
-      // echo server — exercises the full HTTP path + retry/timeout machinery
-      // without an Anthropic API key (operator lock 1).
+      // Override selectAdapter to point the real GroqAdapter at the echo
+      // server — exercises the full HTTP path + retry/timeout machinery
+      // without a real Groq API key.
       selectAdapter: (cfg) =>
-        new ClaudeApiAdapter({
-          apiKey: 'sk-ant-test-fixture',
-          model: cfg.anthropicModel,
+        new GroqAdapter({
+          apiKey: 'gsk_test-fixture',
+          model: cfg.groqModel,
           baseURL: echoServer.url,
         }),
     });

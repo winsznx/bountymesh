@@ -19,6 +19,7 @@ use bountymesh_client::{
     BountymeshClient as _,
     BountymeshClientCtors as _,
     BountymeshClientProgram,
+    BountyStatus,
     Error,
     TrackEnum,
     bounty_service::{BountyService as _, events::BountyServiceEvents},
@@ -1042,4 +1043,395 @@ async fn full_cycle_post_claim_submit_accept_withdraw() {
     // 1 Claim + 1 Submit + 1 Withdraw by worker, 1 Accept by poster). Reward flowed
     // exactly once from poster to worker via on-chain escrow. Program is back to
     // baseline. This is the lifecycle the Loom demo will narrate.
+}
+
+// ============================================================
+// v2 transition method tests — Cancel / Reject / Timeout / Revoke
+// ============================================================
+
+/// Fresh program + Open bounty with an explicit deadline. Used by Timeout tests
+/// which need a configured deadline to exercise the deadline-comparison branch.
+async fn bootstrap_with_open_bounty_deadline(
+    extra_actors: &[u64],
+    deadline: u32,
+) -> (
+    GtestEnv,
+    Actor<BountymeshClientProgram, GtestEnv>,
+    u64,
+    u128,
+    u128,
+) {
+    let system = System::new();
+    system.init_logger_with_default_filter("gwasm=debug,gtest=info,sails_rs=debug");
+    system.mint_to(POSTER_ID, INITIAL_BALANCE);
+    for actor in extra_actors {
+        system.mint_to(*actor, INITIAL_BALANCE);
+    }
+
+    let code_id = system.submit_code(WASM_BINARY);
+    let env = GtestEnv::new(system, POSTER_ID.into());
+
+    let program = env
+        .deploy::<BountymeshClientProgram>(code_id, b"bountymesh".to_vec())
+        .new(MIN_REWARD, AUTO_SETTLE_BLOCKS)
+        .await
+        .expect("constructor must succeed");
+
+    let reward: u128 = 1_000_000_000_000;
+    let mut svc = program.bounty_service();
+    let post_result: Result<u64, Error> = svc
+        .post(
+            "Deadlined bounty".to_string(),
+            "Timeout-test fixture bounty with explicit deadline.".to_string(),
+            "n/a".to_string(),
+            reward,
+            Some(deadline),
+            TrackEnum::Open,
+        )
+        .with_value(reward)
+        .await
+        .expect("post should reach reply");
+    let bounty_id = post_result.expect("post must succeed");
+
+    let program_balance = env.system().balance_of(program.id());
+    (env, program, bounty_id, reward, program_balance)
+}
+
+// ---------- Cancel ----------
+
+#[tokio::test]
+async fn cancel_happy_path() {
+    let (env, program, bounty_id, reward, program_after_post) =
+        bootstrap_with_open_bounty(&[]).await;
+
+    let mut svc = program.bounty_service();
+    let listener = svc.listener();
+    let mut event_stream = listener.listen().await.expect("listener should start");
+
+    let result: Result<(), Error> = svc
+        .cancel(bounty_id)
+        .await
+        .expect("cancel should reach reply");
+    assert_eq!(result, Ok(()));
+
+    let (_, event) = event_stream
+        .next()
+        .await
+        .expect("BountyCancelled event must arrive");
+    match event {
+        BountyServiceEvents::BountyCancelled {
+            id,
+            by,
+            refunded,
+            cancelled_at,
+        } => {
+            assert_eq!(id, bounty_id);
+            assert_eq!(by, POSTER_ID.into());
+            assert_eq!(refunded, reward);
+            assert!(cancelled_at >= 1, "cancelled_at must be a real block height");
+        }
+        other => panic!("expected BountyCancelled, got {:?}", other),
+    }
+
+    // Escrow drained from program balance back to poster (caller==target,
+    // CommandReply::with_value(reward) on the reply).
+    let program_after_cancel = env.system().balance_of(program.id());
+    assert_eq!(
+        program_after_post - program_after_cancel,
+        reward,
+        "Cancel must drain the full escrow back to the poster via reply"
+    );
+}
+
+#[tokio::test]
+async fn cancel_when_not_open_errs() {
+    // Claim first — bounty becomes Claimed, no longer cancellable.
+    let (env, program, bounty_id, _reward, program_after_claim) =
+        bootstrap_with_claimed_bounty(&[]).await;
+
+    let attached: u128 = 11;
+    let mut svc = program.bounty_service();
+    let result: Result<(), Error> = svc
+        .cancel(bounty_id)
+        .with_value(attached)
+        .await
+        .expect("cancel should reach reply");
+    assert_eq!(result, Err(Error::BountyNotOpen));
+
+    // Defensive refund — program balance unchanged.
+    let balance_after = env.system().balance_of(program.id());
+    assert_eq!(
+        balance_after, program_after_claim,
+        "BountyNotOpen on Cancel must refund attached value"
+    );
+}
+
+#[tokio::test]
+async fn cancel_from_non_poster_errs() {
+    let (env, program, bounty_id, _reward, program_after_post) =
+        bootstrap_with_open_bounty(&[WORKER_A]).await;
+
+    let attached: u128 = 17;
+    let mut svc = program.bounty_service();
+    let result: Result<(), Error> = svc
+        .cancel(bounty_id)
+        .with_actor_id(WORKER_A.into())
+        .with_value(attached)
+        .await
+        .expect("cancel should reach reply");
+    assert_eq!(result, Err(Error::Unauthorized));
+
+    let balance_after = env.system().balance_of(program.id());
+    assert_eq!(
+        balance_after, program_after_post,
+        "Unauthorized Cancel must refund attached value and leave escrow intact"
+    );
+
+    // Poster can still cancel afterwards — proves rejection was a no-op on state.
+    let mut svc2 = program.bounty_service();
+    let recovery: Result<(), Error> = svc2
+        .cancel(bounty_id)
+        .await
+        .expect("recovery cancel should reach reply");
+    assert_eq!(
+        recovery,
+        Ok(()),
+        "after a rejected non-poster Cancel, the legitimate poster's Cancel must still succeed"
+    );
+}
+
+// ---------- Reject ----------
+
+#[tokio::test]
+async fn reject_happy_path() {
+    let (env, program, bounty_id, reward, _result_hash, program_after_submit) =
+        bootstrap_with_submitted_bounty(&[]).await;
+
+    let mut svc = program.bounty_service();
+    let listener = svc.listener();
+    let mut event_stream = listener.listen().await.expect("listener should start");
+
+    let reason = Some("output did not meet acceptance criteria".to_string());
+    let result: Result<(), Error> = svc
+        .reject(bounty_id, reason.clone())
+        .await
+        .expect("reject should reach reply");
+    assert_eq!(result, Ok(()));
+
+    let (_, event) = event_stream
+        .next()
+        .await
+        .expect("BountyRejected event must arrive");
+    match event {
+        BountyServiceEvents::BountyRejected {
+            id,
+            by,
+            worker,
+            reason: emitted_reason,
+            rejected_at,
+        } => {
+            assert_eq!(id, bounty_id);
+            assert_eq!(by, POSTER_ID.into());
+            assert_eq!(worker, WORKER_A.into());
+            assert_eq!(emitted_reason, reason);
+            assert!(rejected_at >= 1, "rejected_at must be a real block height");
+        }
+        other => panic!("expected BountyRejected, got {:?}", other),
+    }
+
+    // Escrow refunded to poster via reply (caller==target).
+    let program_after_reject = env.system().balance_of(program.id());
+    assert_eq!(
+        program_after_submit - program_after_reject,
+        reward,
+        "Reject must drain the full escrow back to the poster via reply"
+    );
+}
+
+#[tokio::test]
+async fn reject_when_not_submitted_errs() {
+    // Bounty is Open — Reject expects Submitted.
+    let (env, program, bounty_id, _reward, program_after_post) =
+        bootstrap_with_open_bounty(&[]).await;
+
+    let attached: u128 = 4;
+    let mut svc = program.bounty_service();
+    let result: Result<(), Error> = svc
+        .reject(bounty_id, Some("premature".to_string()))
+        .with_value(attached)
+        .await
+        .expect("reject should reach reply");
+    assert_eq!(result, Err(Error::BountyNotSubmitted));
+
+    let balance_after = env.system().balance_of(program.id());
+    assert_eq!(
+        balance_after, program_after_post,
+        "BountyNotSubmitted on Reject must refund attached value"
+    );
+}
+
+// ---------- Timeout ----------
+
+#[tokio::test]
+async fn timeout_happy_path() {
+    // Deadline = 2 (a low block height the test can reach quickly). Advance
+    // blocks past it, then anyone (WORKER_B, who is NOT the poster or worker)
+    // calls Timeout permissionlessly.
+    let (env, program, bounty_id, reward, program_after_post) =
+        bootstrap_with_open_bounty_deadline(&[WORKER_B], 2).await;
+
+    // Advance several blocks so exec::block_height() > deadline.
+    for _ in 0..5 {
+        env.system().run_next_block();
+    }
+
+    let mut svc = program.bounty_service();
+    let listener = svc.listener();
+    let mut event_stream = listener.listen().await.expect("listener should start");
+
+    let result: Result<(), Error> = svc
+        .timeout(bounty_id)
+        .with_actor_id(WORKER_B.into())
+        .await
+        .expect("timeout should reach reply");
+    assert_eq!(result, Ok(()));
+
+    let (_, event) = event_stream
+        .next()
+        .await
+        .expect("BountyTimedOut event must arrive");
+    match event {
+        BountyServiceEvents::BountyTimedOut {
+            id,
+            last_state,
+            called_by,
+            refunded_to,
+            timed_out_at,
+        } => {
+            assert_eq!(id, bounty_id);
+            assert_eq!(last_state, BountyStatus::Open);
+            assert_eq!(called_by, WORKER_B.into());
+            assert_eq!(refunded_to, POSTER_ID.into());
+            assert!(timed_out_at >= 2, "timed_out_at must be a real block height past deadline");
+        }
+        other => panic!("expected BountyTimedOut, got {:?}", other),
+    }
+
+    // Escrow leaves the program via msg::send_bytes(poster, ...). The exact
+    // destination behavior in gtest is mailbox semantics; what matters for
+    // correctness is that the program balance drops by exactly `reward`.
+    let program_after_timeout = env.system().balance_of(program.id());
+    assert_eq!(
+        program_after_post - program_after_timeout,
+        reward,
+        "Timeout must push the full escrow out of the program (to poster's mailbox)"
+    );
+}
+
+#[tokio::test]
+async fn timeout_when_deadline_not_reached_errs() {
+    // Set deadline far in the future so the current block height does not
+    // exceed it. Block 0 < deadline 1_000_000.
+    let (env, program, bounty_id, _reward, program_after_post) =
+        bootstrap_with_open_bounty_deadline(&[WORKER_B], 1_000_000).await;
+
+    let attached: u128 = 3;
+    let mut svc = program.bounty_service();
+    let result: Result<(), Error> = svc
+        .timeout(bounty_id)
+        .with_actor_id(WORKER_B.into())
+        .with_value(attached)
+        .await
+        .expect("timeout should reach reply");
+    assert_eq!(result, Err(Error::DeadlineNotReached));
+
+    let balance_after = env.system().balance_of(program.id());
+    assert_eq!(
+        balance_after, program_after_post,
+        "DeadlineNotReached must refund attached value and leave escrow intact"
+    );
+}
+
+// ---------- Revoke ----------
+
+#[tokio::test]
+async fn revoke_happy_path() {
+    // Owner == POSTER_ID (set at construction). Revoke an Open bounty:
+    // escrow refunds to the original poster (also POSTER_ID).
+    let (env, program, bounty_id, reward, program_after_post) =
+        bootstrap_with_open_bounty(&[]).await;
+
+    let mut svc = program.bounty_service();
+    let listener = svc.listener();
+    let mut event_stream = listener.listen().await.expect("listener should start");
+
+    let result: Result<(), Error> = svc
+        .revoke(bounty_id)
+        .await
+        .expect("revoke should reach reply");
+    assert_eq!(result, Ok(()));
+
+    let (_, event) = event_stream
+        .next()
+        .await
+        .expect("BountyRevoked event must arrive");
+    match event {
+        BountyServiceEvents::BountyRevoked {
+            id,
+            by,
+            refunded_to,
+            revoked_at,
+        } => {
+            assert_eq!(id, bounty_id);
+            assert_eq!(by, POSTER_ID.into());
+            assert_eq!(refunded_to, POSTER_ID.into());
+            assert!(revoked_at >= 1, "revoked_at must be a real block height");
+        }
+        other => panic!("expected BountyRevoked, got {:?}", other),
+    }
+
+    // Escrow leaves the program via msg::send_bytes (caller==owner != value-target
+    // in the general case; here owner == poster so the destination is the poster,
+    // but the primitive is still send_bytes per the caller-vs-target rule).
+    let program_after_revoke = env.system().balance_of(program.id());
+    assert_eq!(
+        program_after_post - program_after_revoke,
+        reward,
+        "Revoke (non-withdrawn) must push the full escrow out of the program"
+    );
+}
+
+#[tokio::test]
+async fn revoke_from_non_owner_errs() {
+    // WORKER_A is not the owner (owner is POSTER_ID). Revoke must reject.
+    let (env, program, bounty_id, _reward, program_after_post) =
+        bootstrap_with_open_bounty(&[WORKER_A]).await;
+
+    let attached: u128 = 9;
+    let mut svc = program.bounty_service();
+    let result: Result<(), Error> = svc
+        .revoke(bounty_id)
+        .with_actor_id(WORKER_A.into())
+        .with_value(attached)
+        .await
+        .expect("revoke should reach reply");
+    assert_eq!(result, Err(Error::Unauthorized));
+
+    let balance_after = env.system().balance_of(program.id());
+    assert_eq!(
+        balance_after, program_after_post,
+        "Unauthorized Revoke must refund attached value and leave escrow intact"
+    );
+
+    // Owner can still revoke afterwards.
+    let mut svc2 = program.bounty_service();
+    let recovery: Result<(), Error> = svc2
+        .revoke(bounty_id)
+        .await
+        .expect("recovery revoke should reach reply");
+    assert_eq!(
+        recovery,
+        Ok(()),
+        "after a rejected non-owner Revoke, the legitimate owner's Revoke must still succeed"
+    );
 }

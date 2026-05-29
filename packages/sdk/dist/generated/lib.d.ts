@@ -2,7 +2,7 @@ import { GearApi } from '@gear-js/api';
 import type { HexString } from '@gear-js/api/types';
 import { TypeRegistry } from '@polkadot/types';
 import { TransactionBuilder, H256, ActorId } from 'sails-js';
-import type { SailsError, TrackEnum } from './_shim.js';
+import type { SailsError, TrackEnum, BountyStatus } from './_shim.js';
 export declare class SailsProgram {
     api: GearApi;
     readonly registry: TypeRegistry;
@@ -47,6 +47,19 @@ export declare class BountyService {
         err: SailsError;
     }>;
     /**
+     * Cancel an Open bounty. Poster-only. Refunds the full escrow + any attached value.
+     *
+     * Status: Open → Cancelled (terminal).
+     * Caller MUST be the original poster.
+     * Refund: caller == value-target (poster), so `CommandReply::with_value(reward + value)`
+     * rides on the reply atomically.
+    */
+    cancel(id: number | string | bigint): TransactionBuilder<{
+        ok: null;
+    } | {
+        err: SailsError;
+    }>;
+    /**
      * Claim an Open bounty. First wallet wins; second caller gets Err(BountyNotOpen).
      *
      * Claim is not payable. Any attached value is refunded defensively via
@@ -71,6 +84,34 @@ export declare class BountyService {
         err: SailsError;
     }>;
     /**
+     * Reject a Submitted bounty. Poster-only. Refunds the full escrow + any attached value.
+     *
+     * Status: Submitted → Rejected (terminal).
+     * Caller MUST be the original poster.
+     * The optional `reason` (≤ 500 chars) is persisted on-chain for indexer visibility.
+     * Refund: same primitive as Cancel — caller == value-target (poster).
+    */
+    reject(id: number | string | bigint, reason: string | null): TransactionBuilder<{
+        ok: null;
+    } | {
+        err: SailsError;
+    }>;
+    /**
+     * Owner emergency: forcibly Revoke a bounty in any state.
+     *
+     * Caller MUST be `state.owner` (set immutably at construction).
+     * If bounty has not been withdrawn, escrow is pushed to the original poster.
+     * If bounty has already been withdrawn (Accepted + withdrawn=true), no
+     * escrow movement — status flip only.
+     * Refund: caller (owner) ≠ value-target (poster). Same primitive as Timeout:
+     * `msg::send_bytes` to poster + `with_value(value)` reply refund.
+    */
+    revoke(id: number | string | bigint): TransactionBuilder<{
+        ok: null;
+    } | {
+        err: SailsError;
+    }>;
+    /**
      * Submit the worker's result payload + hash. Status flips Claimed → Submitted.
      *
      * Auth: caller must equal bounty.worker.
@@ -81,6 +122,22 @@ export declare class BountyService {
      * Submit is not payable. Any attached value is refunded defensively.
     */
     submit(id: number | string | bigint, result_payload: string, result_hash: H256): TransactionBuilder<{
+        ok: null;
+    } | {
+        err: SailsError;
+    }>;
+    /**
+     * Permissionless watchdog: force a stuck bounty into TimedOut after deadline.
+     *
+     * Status: Open | Claimed | Submitted → TimedOut (terminal).
+     * Caller is anyone — this is the canonical permissionless watchdog pattern.
+     * Deadline MUST be set AND `exec::block_height() > deadline`.
+     * Refund: caller ≠ value-target (poster). Per the primitive rule, escrow is
+     * pushed to poster's mailbox via `msg::send_bytes(poster, [], reward)`;
+     * caller's attached value rides back on the reply via `with_value(value)`.
+     * This is the FIRST `msg::send_bytes` invocation in the contract surface.
+    */
+    timeout(id: number | string | bigint): TransactionBuilder<{
         ok: null;
     } | {
         err: SailsError;
@@ -144,6 +201,32 @@ export declare class BountyService {
         worker: ActorId;
         amount: number | string | bigint;
         withdrawn_at: number;
+    }) => void | Promise<void>): Promise<() => void>;
+    subscribeToBountyCancelledEvent(callback: (data: {
+        id: number | string | bigint;
+        by: ActorId;
+        refunded: number | string | bigint;
+        cancelled_at: number;
+    }) => void | Promise<void>): Promise<() => void>;
+    subscribeToBountyRejectedEvent(callback: (data: {
+        id: number | string | bigint;
+        by: ActorId;
+        worker: ActorId;
+        reason: string | null;
+        rejected_at: number;
+    }) => void | Promise<void>): Promise<() => void>;
+    subscribeToBountyTimedOutEvent(callback: (data: {
+        id: number | string | bigint;
+        last_state: BountyStatus;
+        called_by: ActorId;
+        refunded_to: ActorId;
+        timed_out_at: number;
+    }) => void | Promise<void>): Promise<() => void>;
+    subscribeToBountyRevokedEvent(callback: (data: {
+        id: number | string | bigint;
+        by: ActorId;
+        refunded_to: ActorId;
+        revoked_at: number;
     }) => void | Promise<void>): Promise<() => void>;
 }
 //# sourceMappingURL=lib.d.ts.map

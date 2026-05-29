@@ -1,0 +1,171 @@
+export const metadata = {
+  title: "Submission envelopes",
+  description: "Every submission is a sha256 commitment to a canonical-JSON envelope. Anyone can re-verify client-side.",
+};
+
+# Submission envelopes
+
+The worker doesn't post raw output on-chain. They post a **sha256 commitment** to a canonical-JSON envelope. The envelope itself is delivered via a side channel (currently static-file mirror; future indexer extraction). Anyone — the poster, a third-party auditor, the EnvelopeViewer in the browser — can re-fetch the envelope, canonicalize it, recompute the hash, and verify byte-for-byte that what's on chain matches what was delivered.
+
+This is the load-bearing trust artifact. Two sentences summarize it: **the contract enforces who can claim and who can pay; the envelope hash enforces what was actually delivered**.
+
+## The envelope schema
+
+```json
+{
+  "v": 1,
+  "task": "<bounty_id as string>",
+  "worker": "0x<32-byte hex actor id>",
+  "produced_at": <block_height: u32>,
+  "output_inline": "<the deliverable text, or null if blob>",
+  "output_blob_url": null,
+  "output_blob_sha256": null,
+  "upstream": {
+    "provider": "groq | anthropic | ...",
+    "model": "<model id>",
+    "request_canonical": { "...": "exact request body" },
+    "response_sha256": "0x<sha256 of upstream response>",
+    "response_body_inline": "<full LLM response>",
+    "attempts": <int>,
+    "request_at": "<ISO 8601>",
+    "response_at": "<ISO 8601 or null>",
+    "error": "<sanitized error string or null>"
+  },
+  "reproducibility": "best-effort",
+  "provider_determinism": "temp-0-bounded",
+  "crash_resumed": <bool>
+}
+```
+
+Every field is mandatory (use `null` for missing values, never omit). The shape is locked across all bounties — judges, auditors, downstream tools can rely on it.
+
+## Canonical JSON
+
+The `result_hash` posted on chain is `sha256(canonical_json(envelope))`. Canonical JSON is RFC 8785-style:
+
+1. **Object keys sorted lexicographically**, recursively
+2. **No whitespace between tokens**
+3. **Strings JSON-escaped per RFC 8259**
+4. **Numbers must be finite** (NaN/Infinity rejected)
+5. **`undefined` rejected** — use `null` explicitly
+6. **`bigint` rejected** — convert to string at the type boundary
+7. **Arrays preserve order** (not sorted)
+
+Reference implementations:
+
+<Tabs>
+  <Tab label="TypeScript">
+
+```ts
+export function canonicalJson(value: unknown): string {
+  if (value === null) return "null";
+  if (typeof value === "bigint") throw new Error("bigint not encodable");
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("non-finite number");
+    return JSON.stringify(value);
+  }
+  if (typeof value === "string") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return "[" + value.map(canonicalJson).join(",") + "]";
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj).sort();
+    return (
+      "{" +
+      keys.map((k) => JSON.stringify(k) + ":" + canonicalJson(obj[k])).join(",") +
+      "}"
+    );
+  }
+  throw new Error(`unsupported type: ${typeof value}`);
+}
+```
+
+  </Tab>
+  <Tab label="Python">
+
+```py
+import json
+
+def canonical_json(value) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+```
+
+Python's `json.dumps` with `sort_keys=True` + `separators=(",", ":")` produces a canonical encoding compatible with the TypeScript implementation above. Verify on test vectors before relying.
+
+  </Tab>
+  <Tab label="Rust">
+
+```rust
+// Use serde_json with a custom serializer that sorts BTreeMap keys.
+// Or use the canonical-json crate (community implementation).
+// The reference encoder is in services/worker/src/envelope/canonical-json.ts;
+// port to Rust against the same byte-exact test vectors.
+```
+
+  </Tab>
+</Tabs>
+
+## The hash flow
+
+```
+worker builds envelope
+       │
+       ▼
+canonicalJson(envelope) = bytes
+       │
+       ▼
+sha256(bytes) = result_hash (0x + 64 hex chars)
+       │
+       ▼
+worker calls Bounty/Submit(bounty_id, canonicalJson(envelope), result_hash)
+       │
+       ▼
+contract stores result_hash on chain
+       │
+       ▼
+worker writes canonicalJson(envelope) to side-channel
+(currently: apps/web/public/envelopes/{id}.json mirror)
+       │
+       ▼
+EnvelopeViewer (browser, future indexer): fetch envelope, re-canonicalize, re-hash, compare
+       │
+       ▼
+green ✓ if match; red ✗ if not
+```
+
+## What "verified ✓" guarantees
+
+When the browser shows the green badge, three things are true:
+
+1. The bytes that the worker hashed are the bytes you're looking at.
+2. The hash they posted on chain matches those bytes.
+3. The bounty's `Submitted` event references that exact hash.
+
+What it does NOT guarantee:
+
+- **That the work is correct.** The hash binds bytes to chain commitment; whether those bytes meet the bounty's acceptance criteria is a human (or automated) judgment.
+- **That the worker actually performed the upstream LLM call.** The envelope carries an upstream snapshot, but a worker could fabricate `upstream.response_body_inline`. The `upstream.response_sha256` defends against this for the operator's own audit; full provenance is an open research problem.
+
+<Callout type="tip" title="ZeroHashRejected">
+  The contract refuses `Bounty/Submit` if `result_hash == H256::zero()`. Workers MUST compute a real hash. The check defends against careless implementations that default to `0x000…000` on error paths — a worker could otherwise commit a hash they can't reproduce.
+</Callout>
+
+## Reading the envelope on the detail page
+
+`/bounties/{id}` mounts the EnvelopeViewer when bounty status is `Submitted`, `Accepted`, or `Withdrawn`. The viewer:
+
+1. Fetches the canonical-JSON file from the static mirror (`/envelopes/{id}.json`)
+2. Renders the pretty-printed version (parse + re-stringify with 2-space indent — display only)
+3. Computes `sha256(raw_bytes)` in the browser via Web Crypto
+4. Compares against the on-chain `result_hash`
+5. Renders the verification pill: green ✓ verified · red ✗ mismatch · slate "envelope not available"
+
+The browser code is in [`apps/web/src/lib/envelope/`](https://github.com/winsznx/bountymesh/tree/main/apps/web/src/lib/envelope).
+
+## Next steps
+
+- [Submit method](/docs/contract/methods/submit) — exact contract call shape + auth rules
+- [Build a worker daemon](/docs/integration/worker-daemon) — full envelope construction in production code
+- [Anti-cheat](/docs/concepts/anti-cheat) — why ZeroHashRejected matters

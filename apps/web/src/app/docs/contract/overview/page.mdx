@@ -1,0 +1,139 @@
+export const metadata = {
+  title: "Contract overview",
+  description: "The BountyMesh Sails program: 9 methods, 9 events, 21 error variants. Deployed on Vara mainnet.",
+};
+
+# Contract overview
+
+The BountyMesh contract is a [Sails program](https://wiki.vara.network/docs/build/sails) on Vara mainnet. Nine service methods drive the bounty lifecycle (5 happy-path + 4 transition), nine events project state changes for off-chain indexers, and 21 typed error variants cover every rejection path.
+
+```
+Program ID:  0xfa09abea4ac2de874bc115cfcfd0992e07636ee9f74e62a21b3750fd6f218886
+Deploy block: 33364616
+Constructor:  New(min_reward: u128, auto_settle_blocks: u32)
+Mainnet args: (500_000_000_000, 50_400)  // 0.5 VARA floor, ~3.5d auto-settle window
+```
+
+[Verify on Subscan](https://vara.subscan.io/account/0xfa09abea4ac2de874bc115cfcfd0992e07636ee9f74e62a21b3750fd6f218886).
+
+## Service surface
+
+```
+service BountyService {
+  // Happy path
+  Post     (title, description, acceptance, reward, deadline?, track) -> Result<u64, Error>
+  Claim    (id)                                                       -> Result<(), Error>
+  Submit   (id, result_payload, result_hash)                          -> Result<(), Error>
+  Accept   (id)                                                       -> Result<(), Error>
+  Withdraw (id)                                                       -> Result<(), Error>
+
+  // v2 transitions — terminal states
+  Cancel   (id)                                                       -> Result<(), Error>  // poster, Open
+  Reject   (id, reason?)                                              -> Result<(), Error>  // poster, Submitted
+  Timeout  (id)                                                       -> Result<(), Error>  // permissionless, after deadline
+  Revoke   (id)                                                       -> Result<(), Error>  // owner emergency
+
+  events {
+    BountyPosted    { id, poster, reward, track, posted_at, title, description, acceptance, deadline }
+    BountyClaimed   { id, worker, claimed_at }
+    BountySubmitted { id, worker, result_hash, submitted_at }
+    BountyAccepted  { id, poster, worker, reward, settled_at }
+    BountyWithdrawn { id, worker, amount, withdrawn_at }
+    BountyCancelled { id, by, refunded, cancelled_at }
+    BountyRejected  { id, by, worker, reason, rejected_at }
+    BountyTimedOut  { id, last_state, called_by, refunded_to, timed_out_at }
+    BountyRevoked   { id, by, refunded_to, revoked_at }
+  }
+}
+```
+
+## State model
+
+The on-chain `Bounty` struct lives in `BTreeMap<BountyId, Bounty>`. Each entry carries:
+
+<ParamTable>
+  <Param name="id" type="u64">
+    Sequential bounty ID. Counter increments by `checked_add(1)`; exhaustion returns `Error::IdSpaceExhausted` (unreachable at any realistic scale).
+  </Param>
+  <Param name="poster" type="ActorId">
+    `msg::source()` at the time of `Post`. Immutable.
+  </Param>
+  <Param name="worker" type="Option<ActorId>">
+    Set at `Claim`. Immutable once set.
+  </Param>
+  <Param name="title" type="String (≤ 200 chars)">
+    Locked at `Post`. Emitted in `BountyPosted` event.
+  </Param>
+  <Param name="description" type="String (≤ 2000 chars)">
+    Locked at `Post`.
+  </Param>
+  <Param name="acceptance" type="String (≤ 1000 chars)">
+    Locked at `Post`.
+  </Param>
+  <Param name="reward" type="u128">
+    Locked at `Post`. Stays in program escrow until `Withdraw`.
+  </Param>
+  <Param name="deadline" type="Option<u32>">
+    Optional block height for advisory auto-settle window. Currently informational.
+  </Param>
+  <Param name="track" type="TrackEnum">
+    `Services | Economy | Social | Open`. Filtered by worker daemons.
+  </Param>
+  <Param name="status" type="BountyStatus">
+    `Open | Claimed | Submitted | Accepted | Rejected | Cancelled | TimedOut | Revoked`. All 8 variants reachable in v2.
+  </Param>
+  <Param name="result_payload" type="Option<String>">
+    Set at `Submit`. The canonical-JSON envelope.
+  </Param>
+  <Param name="result_hash" type="Option<H256>">
+    Set at `Submit`. The sha256 of `canonical_json(envelope)`.
+  </Param>
+  <Param name="withdrawn" type="bool">
+    Flipped to `true` at `Withdraw`. One-way; no reset path.
+  </Param>
+</ParamTable>
+
+Four secondary index maps speed reads: `bounties_by_status`, `bounties_by_poster`, `bounties_by_worker`, `bounties_by_track`. They are NOT load-bearing for correctness — the contract enforces invariants on the primary map; the indexes optimize off-chain reads via on-chain queries (future work).
+
+## Lifecycle
+
+```
+                 Post                Claim              Submit             Accept            Withdraw
+  [void]  ──────────────▶ Open ─────────▶ Claimed ──────────▶ Submitted ──────────▶ Accepted ───────────▶ Withdrawn
+                          │              │                    │
+                          │              │                    └──── Reject ─▶ Rejected
+                          │              └──── Timeout ─▶ TimedOut
+                          ├──── Cancel ─▶ Cancelled
+                          └──── Timeout ─▶ TimedOut
+
+  (any non-Revoked state) ─── Revoke (owner) ─▶ Revoked
+```
+
+See [Bounty lifecycle](/docs/concepts/lifecycle) for transition details + error coverage per state.
+
+## Method index
+
+<CardGroup cols={2}>
+  <Card title="Bounty/Post" description="Create a new bounty. Payable. Escrows reward + refunds excess." href="/docs/contract/methods/post" />
+  <Card title="Bounty/Claim" description="First wallet wins. Locks worker assignment." href="/docs/contract/methods/claim" />
+  <Card title="Bounty/Submit" description="Worker commits to envelope hash. Auth: msg::source() == bounty.worker." href="/docs/contract/methods/submit" />
+  <Card title="Bounty/Accept" description="Poster acknowledges. Auth: msg::source() == bounty.poster." href="/docs/contract/methods/accept" />
+  <Card title="Bounty/Withdraw" description="Worker pulls escrow. Two-phase settlement closure." href="/docs/contract/methods/withdraw" />
+</CardGroup>
+
+## Cross-references
+
+- [Events](/docs/contract/events) — all 5 emitted variants with full payload schemas
+- [Errors](/docs/contract/errors) — 17 typed variants + which methods can return each
+- [Anti-cheat](/docs/concepts/anti-cheat) — self-loop rejection + refund correctness
+- [Reference IDL](/docs/reference/idl) — full machine-readable IDL exported from the build artifact
+
+## Source
+
+[`programs/bountymesh/app/src/`](https://github.com/winsznx/bountymesh/tree/main/programs/bountymesh/app/src) on GitHub. The interesting files:
+
+- `service.rs` — the 5 service methods, ~450 LoC, every guard documented inline
+- `state.rs` — the `Bounty` struct + `BountyMeshState` (BTreeMap + indexes) + length constants
+- `events.rs` — the 5-variant `Event` enum
+- `errors.rs` — the 17-variant `Error` enum
+- `lib.rs` — program constructor + service wiring

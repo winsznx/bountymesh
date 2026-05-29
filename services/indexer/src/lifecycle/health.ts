@@ -1,9 +1,8 @@
 /**
- * /health response builder + in-memory HealthState (Step 5e).
+ * /health response builder + in-memory HealthState.
  *
- * Shape locked in Step 3 senior review concern #6. Consumer-facing for Phase 6
- * monitoring (Railway health probes, manual ops checks). DO NOT reshape without
- * coordinating with whoever depends on this.
+ * Consumer-facing for monitoring (Railway health probes, manual ops checks).
+ * DO NOT reshape without coordinating with whoever depends on this.
  *
  * status derivation:
  *   'ok'        — db=ok AND chain=connected AND parseErrors1h=0 AND lagFromHead<10

@@ -59,9 +59,9 @@ function envForBoot(opts: {
     WORKER_TRACK: 'Services',
     WORKER_MIN_REWARD_ATOMIC: '1000000000000',
     INDEXER_MAX_LAG_BLOCKS: '1000',
-    ANTHROPIC_API_KEY: 'sk-ant-test-fixture',
-    // Adapter HTTP routed to local echo server (P3.10b lock 1 pattern).
-    ANTHROPIC_BASE_URL: opts.echoUrl,
+    GROQ_API_KEY: 'gsk_test-fixture',
+    // Adapter HTTP routed to local echo server.
+    GROQ_BASE_URL: opts.echoUrl,
     BOUNTYMESH_WORKER_SEED: opts.workerSeed,
     WORKER_STATE_PATH: opts.statePath,
     WORKER_HISTORY_PATH: opts.historyPath,

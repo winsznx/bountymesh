@@ -5,16 +5,26 @@ import type { TypeRegistry } from '@polkadot/types';
 import type {
   BountyAcceptedEvent,
   BountyAcceptedFilter,
+  BountyCancelledEvent,
+  BountyCancelledFilter,
   BountyClaimedEvent,
   BountyClaimedFilter,
   BountyPostedEvent,
   BountyPostedFilter,
+  BountyRejectedEvent,
+  BountyRejectedFilter,
+  BountyRevokedEvent,
+  BountyRevokedFilter,
+  BountyStatusName,
   BountySubmittedEvent,
   BountySubmittedFilter,
+  BountyTimedOutEvent,
+  BountyTimedOutFilter,
   BountyWithdrawnEvent,
   BountyWithdrawnFilter,
   Unsubscribe,
 } from './types.js';
+import { BOUNTY_STATUS_BY_DISCRIMINANT } from './types.js';
 import type { Track } from './errors.generated.js';
 
 export type EventName =
@@ -22,7 +32,11 @@ export type EventName =
   | 'BountyClaimed'
   | 'BountySubmitted'
   | 'BountyAccepted'
-  | 'BountyWithdrawn';
+  | 'BountyWithdrawn'
+  | 'BountyCancelled'
+  | 'BountyRejected'
+  | 'BountyTimedOut'
+  | 'BountyRevoked';
 
 export interface EventTypeMap {
   BountyPosted: BountyPostedEvent;
@@ -30,6 +44,10 @@ export interface EventTypeMap {
   BountySubmitted: BountySubmittedEvent;
   BountyAccepted: BountyAcceptedEvent;
   BountyWithdrawn: BountyWithdrawnEvent;
+  BountyCancelled: BountyCancelledEvent;
+  BountyRejected: BountyRejectedEvent;
+  BountyTimedOut: BountyTimedOutEvent;
+  BountyRevoked: BountyRevokedEvent;
 }
 
 export interface FilterTypeMap {
@@ -38,6 +56,10 @@ export interface FilterTypeMap {
   BountySubmitted: BountySubmittedFilter;
   BountyAccepted: BountyAcceptedFilter;
   BountyWithdrawn: BountyWithdrawnFilter;
+  BountyCancelled: BountyCancelledFilter;
+  BountyRejected: BountyRejectedFilter;
+  BountyTimedOut: BountyTimedOutFilter;
+  BountyRevoked: BountyRevokedFilter;
 }
 
 const PAYLOAD_TYPE: Record<EventName, string> = {
@@ -51,6 +73,15 @@ const PAYLOAD_TYPE: Record<EventName, string> = {
     '(String, String, {"id":"u64","poster":"[u8;32]","worker":"[u8;32]","reward":"u128","settled_at":"u32"})',
   BountyWithdrawn:
     '(String, String, {"id":"u64","worker":"[u8;32]","amount":"u128","withdrawn_at":"u32"})',
+  // v1.1 — v2 transition events. last_state decoded as u8 discriminant.
+  BountyCancelled:
+    '(String, String, {"id":"u64","by":"[u8;32]","refunded":"u128","cancelled_at":"u32"})',
+  BountyRejected:
+    '(String, String, {"id":"u64","by":"[u8;32]","worker":"[u8;32]","reason":"Option<String>","rejected_at":"u32"})',
+  BountyTimedOut:
+    '(String, String, {"id":"u64","last_state":"u8","called_by":"[u8;32]","refunded_to":"[u8;32]","timed_out_at":"u32"})',
+  BountyRevoked:
+    '(String, String, {"id":"u64","by":"[u8;32]","refunded_to":"[u8;32]","revoked_at":"u32"})',
 };
 
 interface InternalSub {
@@ -74,7 +105,7 @@ interface EventRecord {
 /**
  * Internal event multiplexer for BountyMeshClient.
  *
- * Design (per MASTER_PRD §10 + Phase 2 senior-review concern #5):
+ * Design:
  *   - ONE underlying chain-head subscription per BountyMeshClient instance,
  *     opened lazily on the first .on() call across any event type.
  *   - Per-event subscription registry (5 typed events). Each registration
@@ -265,6 +296,48 @@ export class SubscriptionManager {
           blockHash,
           txHash,
         } satisfies BountyWithdrawnEvent;
+      case 'BountyCancelled':
+        return {
+          id: BigInt(raw.id as string | number),
+          by: raw.by as HexString,
+          refunded: BigInt(raw.refunded as string | number),
+          cancelledAt: raw.cancelled_at as number,
+          blockHash,
+          txHash,
+        } satisfies BountyCancelledEvent;
+      case 'BountyRejected':
+        return {
+          id: BigInt(raw.id as string | number),
+          by: raw.by as HexString,
+          worker: raw.worker as HexString,
+          reason: (raw.reason as string | null) ?? null,
+          rejectedAt: raw.rejected_at as number,
+          blockHash,
+          txHash,
+        } satisfies BountyRejectedEvent;
+      case 'BountyTimedOut': {
+        const ls = raw.last_state as number;
+        const lastState: BountyStatusName =
+          BOUNTY_STATUS_BY_DISCRIMINANT[ls] ?? 'Open';
+        return {
+          id: BigInt(raw.id as string | number),
+          lastState,
+          calledBy: raw.called_by as HexString,
+          refundedTo: raw.refunded_to as HexString,
+          timedOutAt: raw.timed_out_at as number,
+          blockHash,
+          txHash,
+        } satisfies BountyTimedOutEvent;
+      }
+      case 'BountyRevoked':
+        return {
+          id: BigInt(raw.id as string | number),
+          by: raw.by as HexString,
+          refundedTo: raw.refunded_to as HexString,
+          revokedAt: raw.revoked_at as number,
+          blockHash,
+          txHash,
+        } satisfies BountyRevokedEvent;
     }
   }
 
@@ -306,6 +379,32 @@ export class SubscriptionManager {
         const e = event as BountyWithdrawnEvent;
         const f = filter as BountyWithdrawnFilter;
         if (f.worker !== undefined && e.worker.toLowerCase() !== f.worker.toLowerCase()) return false;
+        return true;
+      }
+      case 'BountyCancelled': {
+        const e = event as BountyCancelledEvent;
+        const f = filter as BountyCancelledFilter;
+        if (f.by !== undefined && e.by.toLowerCase() !== f.by.toLowerCase()) return false;
+        return true;
+      }
+      case 'BountyRejected': {
+        const e = event as BountyRejectedEvent;
+        const f = filter as BountyRejectedFilter;
+        if (f.by !== undefined && e.by.toLowerCase() !== f.by.toLowerCase()) return false;
+        if (f.worker !== undefined && e.worker.toLowerCase() !== f.worker.toLowerCase()) return false;
+        return true;
+      }
+      case 'BountyTimedOut': {
+        const e = event as BountyTimedOutEvent;
+        const f = filter as BountyTimedOutFilter;
+        if (f.refundedTo !== undefined && e.refundedTo.toLowerCase() !== f.refundedTo.toLowerCase()) return false;
+        return true;
+      }
+      case 'BountyRevoked': {
+        const e = event as BountyRevokedEvent;
+        const f = filter as BountyRevokedFilter;
+        if (f.by !== undefined && e.by.toLowerCase() !== f.by.toLowerCase()) return false;
+        if (f.refundedTo !== undefined && e.refundedTo.toLowerCase() !== f.refundedTo.toLowerCase()) return false;
         return true;
       }
     }

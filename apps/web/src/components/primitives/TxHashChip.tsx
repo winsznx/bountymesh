@@ -23,14 +23,14 @@ export function TxHashChip({ hash, explorerBaseUrl, label }: Props) {
   };
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-sm bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300"
+      className="inline-flex items-center gap-1.5 rounded-input border border-abyssal-ink/20 bg-ash-white px-3 py-1 font-mono text-xs text-abyssal-ink"
       title={hash}
     >
-      {label && <span className="text-slate-500">{label}</span>}
+      {label && <span className="text-abyssal-ink/60">{label}</span>}
       <button
         type="button"
         onClick={onCopy}
-        className="inline-flex items-center gap-1 hover:text-cyan-400"
+        className="inline-flex items-center gap-1 transition-colors hover:text-digital-orange"
       >
         {truncate(hash)}
         <Copy className="h-3 w-3" aria-hidden />
@@ -40,7 +40,7 @@ export function TxHashChip({ hash, explorerBaseUrl, label }: Props) {
           href={`${explorerBaseUrl}${hash}`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center text-slate-400 hover:text-cyan-400"
+          className="inline-flex items-center text-abyssal-ink/60 transition-colors hover:text-digital-orange"
           aria-label="View on explorer"
         >
           <ExternalLink className="h-3 w-3" />

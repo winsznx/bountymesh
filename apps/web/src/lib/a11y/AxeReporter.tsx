@@ -3,12 +3,11 @@
 import { useEffect } from "react";
 
 /**
- * Dev-only a11y reporter. Dynamic-imports @axe-core/react so it never
- * enters the production bundle. Logs violations to the browser console;
- * Tim opens DevTools console on each page during the P3.10 gate walkthrough.
+ * Dev-only a11y reporter. Dynamic-imports @axe-core/react so it never enters
+ * the production bundle. Logs violations to the browser console.
  *
- * Tree-shaken at production build time: the dynamic import only fires
- * when NODE_ENV === 'development'.
+ * Tree-shaken at production build time: the dynamic import only fires when
+ * NODE_ENV === 'development'.
  */
 export function AxeReporter() {
   useEffect(() => {

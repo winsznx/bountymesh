@@ -22,7 +22,7 @@ const ALL_WORKER_VARS = [
   'INDEXER_MAX_LAG_BLOCKS',
   'WORKER_KEYSTORE_PATH',
   'WORKER_ADAPTER',
-  'ANTHROPIC_MODEL',
+  'GROQ_MODEL',
   'WORKER_STATE_PATH',
   'WORKER_HISTORY_PATH',
   'WORKER_RESUME_TTL_MS',
@@ -164,8 +164,8 @@ describe('config — loadConfig', () => {
     setRequiredEnv();
     const cfg = loadConfig();
     assert.equal(cfg.indexerHealthMaxLagBlocks, 100);
-    assert.equal(cfg.adapter, 'claude-api');
-    assert.equal(cfg.anthropicModel, 'claude-opus-4-7');
+    assert.equal(cfg.adapter, 'groq');
+    assert.equal(cfg.groqModel, 'llama-3.3-70b-versatile');
     assert.equal(cfg.workerResumeTtlMs, 6 * 60 * 60 * 1000);
     assert.equal(cfg.logLevel, 'info');
     assert.equal(cfg.keystorePath, null);

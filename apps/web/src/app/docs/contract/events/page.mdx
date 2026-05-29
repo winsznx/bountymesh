@@ -1,0 +1,223 @@
+export const metadata = {
+  title: "Events",
+  description: "Five service-level events. Wire-stable SCALE shape. Projected into the indexer and consumed by SDK subscriptions.",
+};
+
+# Events
+
+The BountyMesh service emits exactly five event variants. They are SCALE-encoded on chain, projected into the indexer's `bounties` table, and exposed to SDK consumers via per-event subscriptions (`onBountyPosted`, `onBountyClaimed`, etc.).
+
+Event variant order is **locked at deploy time**. Reordering shifts SCALE discriminants and silently breaks every consumer with a cached IDL. New variants only at the end.
+
+```rust
+pub enum Event {
+    BountyPosted    { … },
+    BountyClaimed   { … },
+    BountySubmitted { … },
+    BountyAccepted  { … },
+    BountyWithdrawn { … },
+}
+```
+
+## BountyPosted
+
+Emitted on successful `Post`.
+
+```rust
+BountyPosted {
+    id:          u64,
+    poster:      ActorId,
+    reward:      u128,
+    track:       TrackEnum,
+    posted_at:   u32,
+    title:       String,
+    description: String,
+    acceptance:  String,
+    deadline:    Option<u32>,
+}
+```
+
+**F1 note:** `title`, `description`, `acceptance`, `deadline` were appended at the END of the payload in a post-5a follow-up. SCALE encodes positionally; ENDS are safe to extend, MIDDLES are not. See [type-drift rules](https://github.com/winsznx/bountymesh/blob/main/CLAUDE.md#type-drift-not-caught-by-snapshot).
+
+**Indexer projection:** inserts a new row into `bounties` with `status='Open'`, all six text fields populated, `reward` stored as NUMERIC(39,0) string.
+
+**SDK subscription:**
+
+```ts
+sdk.onBountyPosted((evt, ctx) => {
+  console.log("new bounty", evt.id, evt.title, "from", ctx.blockHash);
+});
+```
+
+`ctx` carries `blockHash`, `blockNumber`, `txHash`, `messageId` — all sourced via `subscribeNewHeads`.
+
+## BountyClaimed
+
+Emitted on successful `Claim`.
+
+```rust
+BountyClaimed {
+    id:         u64,
+    worker:     ActorId,
+    claimed_at: u32,
+}
+```
+
+**Indexer projection:** updates `bounties.status = 'Claimed'`, `bounties.worker_id`, `bounties.claimed_at`. Append to `events` table.
+
+**SDK subscription:**
+
+```ts
+sdk.onBountyClaimed((evt, ctx) => {
+  console.log("bounty", evt.id, "claimed by", evt.worker);
+});
+```
+
+## BountySubmitted
+
+Emitted on successful `Submit`.
+
+```rust
+BountySubmitted {
+    id:           u64,
+    worker:       ActorId,
+    result_hash:  H256,
+    submitted_at: u32,
+}
+```
+
+**Note:** `result_payload` is NOT in the event — it's stored on chain as part of the bounty struct, accessible via a future `GetBounty(id)` query method. The event carries only the hash for fast off-chain verification.
+
+**Indexer projection:** updates `bounties.status = 'Submitted'`, `bounties.result_hash`, `bounties.submitted_at`. The result_payload is fetched on demand by the frontend from the indexer's `bounties.result_payload` (set on a separate path).
+
+**SDK subscription:**
+
+```ts
+sdk.onBountySubmitted((evt, ctx) => {
+  console.log("bounty", evt.id, "submitted with hash", evt.resultHash);
+});
+```
+
+## BountyAccepted
+
+Emitted on successful `Accept`.
+
+```rust
+BountyAccepted {
+    id:         u64,
+    poster:     ActorId,
+    worker:     ActorId,
+    reward:     u128,
+    settled_at: u32,
+}
+```
+
+`reward` echoes the locked-at-Post value — no transfer happened yet. Settlement happens at Withdraw.
+
+**Indexer projection:** updates `bounties.status = 'Accepted'`, `bounties.settled_at`. The `withdrawn` column stays `false`.
+
+**SDK subscription:**
+
+```ts
+sdk.onBountyAccepted((evt, ctx) => {
+  console.log("bounty", evt.id, "ready for worker", evt.worker, "to withdraw");
+});
+```
+
+## BountyWithdrawn
+
+Emitted on successful `Withdraw`.
+
+```rust
+BountyWithdrawn {
+    id:           u64,
+    worker:       ActorId,
+    amount:       u128,
+    withdrawn_at: u32,
+}
+```
+
+`amount` equals `bounty.reward`. The defensive refund of any attached `value` is NOT part of `amount` — that's a free additional refund.
+
+**Indexer projection:** updates `bounties.withdrawn = true`, `bounties.withdrawn_at`. Status stays `Accepted`.
+
+**SDK subscription:**
+
+```ts
+sdk.onBountyWithdrawn((evt, ctx) => {
+  console.log("worker", evt.worker, "pulled", evt.amount, "for bounty", evt.id);
+});
+```
+
+## Subscription architecture
+
+The SDK uses `api.rpc.chain.subscribeNewHeads` (NOT `api.gearEvents.subscribeToGearEvent`) because consumers need `blockHash + txHash` in the event context. `subscribeToGearEvent` only exposes message-level data.
+
+A single underlying WS subscription drives all five `onBountyX` handlers via the SDK's `SubscriptionManager`. ~3 RPC round-trips per block. The indexer absorbs production-scale load — use the indexer's `worker_balance_changed` projection for high-cardinality consumers.
+
+## Watching via vara-wallet
+
+```bash
+vara-wallet watch $BOUNTYMESH_PROGRAM_ID \
+  --idl ./bountymesh.idl \
+  --event BountyService/BountyAccepted \
+  --json
+```
+
+NDJSON output, one line per event:
+
+```json
+{
+  "event":       "UserMessageSent",
+  "messageId":   "0x...",
+  "source":      "0x6683...c39b",
+  "destination": "0x000...",
+  "payload":     "0x...",
+  "decoded": {
+    "kind":    "sails",
+    "service": "BountyService",
+    "event":   "BountyAccepted",
+    "data":    {
+      "id":         "42",
+      "poster":     "0xa2d2...0b1f",
+      "worker":     "0x...",
+      "reward":     "500000000000",
+      "settled_at": 33347600
+    }
+  },
+  "timestamp": 1716845204000
+}
+```
+
+**Limitation:** `watch` emits `messageId` but NOT `blockHash + txHash`. For block-level context, use the SDK's `onBountyX` (block-level via `subscribeNewHeads`) or the indexer's GraphQL.
+
+## Indexer GraphQL query
+
+PostGraphile generates one query per event projection. The flattened `events` table is also queryable:
+
+```graphql
+query {
+  events(condition: { eventName: "BountyAccepted" }, first: 10, orderBy: BLOCK_NUMBER_DESC) {
+    nodes {
+      blockNumber
+      txHash
+      bountyId
+      payload
+    }
+  }
+}
+```
+
+See [GraphQL schema](/docs/reference/graphql) for the full query surface.
+
+## Source
+
+- [`programs/bountymesh/app/src/events.rs`](https://github.com/winsznx/bountymesh/blob/main/programs/bountymesh/app/src/events.rs)
+- [`packages/sdk/src/subscribe.ts`](https://github.com/winsznx/bountymesh/blob/main/packages/sdk/src/subscribe.ts)
+- [`services/indexer/src/ingestion/`](https://github.com/winsznx/bountymesh/tree/main/services/indexer/src/ingestion)
+
+## Next steps
+
+- [Errors](/docs/contract/errors) — typed error variants
+- [GraphQL schema](/docs/reference/graphql) — indexer query surface
+- [SDK reference](/docs/reference/sdk) — TypeScript client API

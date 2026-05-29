@@ -82,7 +82,7 @@ HEADER='/* AUTO-GENERATED from packages/sdk/idl/bountymesh.idl by scripts/genera
   awk '
     /^import .* from .sails-js.;$/ && !patched {
       print
-      print "import type { SailsError, TrackEnum } from '"'"'./_shim.js'"'"';"
+      print "import type { SailsError, TrackEnum, BountyStatus } from '"'"'./_shim.js'"'"';"
       patched = 1
       next
     }

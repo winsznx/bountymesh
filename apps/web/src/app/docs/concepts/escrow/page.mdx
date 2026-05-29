@@ -1,0 +1,93 @@
+export const metadata = {
+  title: "Two-phase escrow",
+  description: "Accept and Withdraw are separate wallet-signed transitions. Funds stay in program escrow between them.",
+};
+
+# Two-phase escrow
+
+The reward sits in program-account escrow from the moment `Bounty/Post` lands until the worker calls `Bounty/Withdraw`. Between those two events, **neither the poster nor the worker can move the funds unilaterally**. That's the security property.
+
+## Why split Accept from Withdraw
+
+A naive design merges them: poster accepts, contract immediately transfers VARA to the worker, bounty closes. Three problems:
+
+1. **Worker isn't online.** Worker is an autonomous daemon that may be temporarily down. A direct transfer at Accept time could land in a mailbox the worker can't drain easily.
+2. **Worker doesn't trust the poster's wallet.** If poster's wallet is compromised between Submit and Accept, attacker drains via Accept-then-transfer. Two-phase makes this impossible — funds can only flow to the worker's address that called `Submit`.
+3. **Audit and observability.** Two distinct events let off-chain indexers split "ready to pay" from "actually paid" cleanly.
+
+## State machine
+
+```
+                Post                Claim              Submit
+[void] ──────────────▶ Open ──────────▶ Claimed ──────────▶ Submitted
+                                                                │
+                                                                │ Accept (poster signs)
+                                                                ▼
+                                              Withdraw      Accepted
+                                            ◀──────────────  ┃ ┃
+                                  Withdrawn                  ┃ ┃ withdrawn = false
+                                                             ┃ ┃
+                                                             ┗━╋━━━ funds locked in escrow
+                                                               ┃    (poster can't divert)
+                                                               ┃
+                                          Worker calls Withdraw ───▶
+                                          delivers reward + any
+                                          attached value via
+                                          CommandReply::with_value
+```
+
+The `Accepted` status carries an explicit `withdrawn` flag. Once `Accept` lands, the bounty is settled from the poster's perspective; from the worker's perspective, the reward becomes claimable.
+
+## What lives in escrow
+
+When `Post` succeeds, the contract holds `value = reward + any excess sent`. The excess is refunded atomically on the reply (via `CommandReply::with_value(excess)`). Only `reward` stays.
+
+`Claim`, `Submit`, and `Accept` are not payable — any value the caller attaches is refunded defensively via `with_value(value)` on both Ok and Err branches. No accidental drain.
+
+`Withdraw` is the only method that increases the caller's balance. It:
+
+1. Verifies `bounty.status == Accepted`
+2. Verifies `msg::source() == bounty.worker`
+3. Verifies `bounty.withdrawn == false` (idempotency)
+4. Sets `bounty.withdrawn = true`
+5. Delivers `reward + any defensive refund` atomically via `CommandReply::with_value(reward + value)`
+
+The atomicity is essential: if the event emission inside `Withdraw` panicked, the entire reply would roll back — both the flag flip and the value transfer. Actor-model semantics. No partial state.
+
+<Callout type="info" title="No msg::send_bytes anywhere">
+  The contract emits zero outbound messages. Every value transfer rides on the reply via `CommandReply::with_value(v)`. This is a [locked posture](/docs/concepts/anti-cheat) — `msg::send_bytes` in `Err` branches silently does not fire, which would leak value into the program balance with no record.
+</Callout>
+
+## What guarantees the worker can withdraw
+
+Three properties:
+
+1. **`bounty.worker` is set at Claim and never changes.** No method overwrites it. The Submit auth check (`msg::source() == bounty.worker`) carries forward to Withdraw.
+2. **`Accepted` is reachable only via Submit→Accept.** No path can flip a bounty from `Open` directly to `Accepted` bypassing the worker assignment.
+3. **`withdrawn` flag is one-way.** Once set to `true`, no method resets it. The contract has no `RewindWithdraw` or admin override.
+
+The poster's only post-Accept action is to wait. Even if they panic-rotate their wallet, nothing in the contract surface can divert the escrow.
+
+## Cost accounting
+
+| Event | Payable | Refund posture |
+| --- | --- | --- |
+| `Post` | yes (must attach ≥ reward) | excess refunded on Ok via `with_value(value - reward)`; full value refunded on Err |
+| `Claim` | no | full value refunded on Ok and Err |
+| `Submit` | no | full value refunded on Ok and Err |
+| `Accept` | no | full value refunded on Ok and Err |
+| `Withdraw` | no | full value + reward delivered on Ok; full value refunded on Err |
+
+If a poster accidentally attaches 5 VARA to a 2-VARA bounty post, they get 3 VARA back on the reply. Same for any defensive attached value on the other methods.
+
+## Auto-settle (future)
+
+The contract was deployed with an `auto_settle_blocks` constructor arg (`50400`, ~3.5 days at 6s blocks). This is reserved for a future `AutoSettle(id)` method that anyone can call to push a stuck `Accepted` bounty into `Withdrawn` for the worker. The primitive for that path is `msg::send_bytes(worker, [], reward)` (caller ≠ value-target, so the reply pattern doesn't apply).
+
+Not implemented today. The reward is permanently retrievable by the worker; only the auto-finalization sugar is deferred.
+
+## Next steps
+
+- [Anti-cheat](/docs/concepts/anti-cheat) — self-loop reject and refund-correctness posture
+- [Bounty lifecycle](/docs/concepts/lifecycle) — the 5-state FSM with all transitions
+- [Withdraw method](/docs/contract/methods/withdraw) — the exact call shape

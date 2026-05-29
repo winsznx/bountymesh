@@ -1,15 +1,21 @@
 import { getFnNamePrefix, getServiceNamePrefix, ZERO_ADDRESS } from 'sails-js';
+import { BOUNTY_STATUS_BY_DISCRIMINANT } from './types.js';
 const PAYLOAD_TYPE = {
     BountyPosted: '(String, String, {"id":"u64","poster":"[u8;32]","reward":"u128","track":"TrackEnum","posted_at":"u32","title":"String","description":"String","acceptance":"String","deadline":"Option<u32>"})',
     BountyClaimed: '(String, String, {"id":"u64","worker":"[u8;32]","claimed_at":"u32"})',
     BountySubmitted: '(String, String, {"id":"u64","worker":"[u8;32]","result_hash":"H256","submitted_at":"u32"})',
     BountyAccepted: '(String, String, {"id":"u64","poster":"[u8;32]","worker":"[u8;32]","reward":"u128","settled_at":"u32"})',
     BountyWithdrawn: '(String, String, {"id":"u64","worker":"[u8;32]","amount":"u128","withdrawn_at":"u32"})',
+    // v1.1 — v2 transition events. last_state decoded as u8 discriminant.
+    BountyCancelled: '(String, String, {"id":"u64","by":"[u8;32]","refunded":"u128","cancelled_at":"u32"})',
+    BountyRejected: '(String, String, {"id":"u64","by":"[u8;32]","worker":"[u8;32]","reason":"Option<String>","rejected_at":"u32"})',
+    BountyTimedOut: '(String, String, {"id":"u64","last_state":"u8","called_by":"[u8;32]","refunded_to":"[u8;32]","timed_out_at":"u32"})',
+    BountyRevoked: '(String, String, {"id":"u64","by":"[u8;32]","refunded_to":"[u8;32]","revoked_at":"u32"})',
 };
 /**
  * Internal event multiplexer for BountyMeshClient.
  *
- * Design (per MASTER_PRD §10 + Phase 2 senior-review concern #5):
+ * Design:
  *   - ONE underlying chain-head subscription per BountyMeshClient instance,
  *     opened lazily on the first .on() call across any event type.
  *   - Per-event subscription registry (5 typed events). Each registration
@@ -183,6 +189,47 @@ export class SubscriptionManager {
                     blockHash,
                     txHash,
                 };
+            case 'BountyCancelled':
+                return {
+                    id: BigInt(raw.id),
+                    by: raw.by,
+                    refunded: BigInt(raw.refunded),
+                    cancelledAt: raw.cancelled_at,
+                    blockHash,
+                    txHash,
+                };
+            case 'BountyRejected':
+                return {
+                    id: BigInt(raw.id),
+                    by: raw.by,
+                    worker: raw.worker,
+                    reason: raw.reason ?? null,
+                    rejectedAt: raw.rejected_at,
+                    blockHash,
+                    txHash,
+                };
+            case 'BountyTimedOut': {
+                const ls = raw.last_state;
+                const lastState = BOUNTY_STATUS_BY_DISCRIMINANT[ls] ?? 'Open';
+                return {
+                    id: BigInt(raw.id),
+                    lastState,
+                    calledBy: raw.called_by,
+                    refundedTo: raw.refunded_to,
+                    timedOutAt: raw.timed_out_at,
+                    blockHash,
+                    txHash,
+                };
+            }
+            case 'BountyRevoked':
+                return {
+                    id: BigInt(raw.id),
+                    by: raw.by,
+                    refundedTo: raw.refunded_to,
+                    revokedAt: raw.revoked_at,
+                    blockHash,
+                    txHash,
+                };
         }
     }
     matchesFilter(eventName, event, filter) {
@@ -227,6 +274,38 @@ export class SubscriptionManager {
                 const e = event;
                 const f = filter;
                 if (f.worker !== undefined && e.worker.toLowerCase() !== f.worker.toLowerCase())
+                    return false;
+                return true;
+            }
+            case 'BountyCancelled': {
+                const e = event;
+                const f = filter;
+                if (f.by !== undefined && e.by.toLowerCase() !== f.by.toLowerCase())
+                    return false;
+                return true;
+            }
+            case 'BountyRejected': {
+                const e = event;
+                const f = filter;
+                if (f.by !== undefined && e.by.toLowerCase() !== f.by.toLowerCase())
+                    return false;
+                if (f.worker !== undefined && e.worker.toLowerCase() !== f.worker.toLowerCase())
+                    return false;
+                return true;
+            }
+            case 'BountyTimedOut': {
+                const e = event;
+                const f = filter;
+                if (f.refundedTo !== undefined && e.refundedTo.toLowerCase() !== f.refundedTo.toLowerCase())
+                    return false;
+                return true;
+            }
+            case 'BountyRevoked': {
+                const e = event;
+                const f = filter;
+                if (f.by !== undefined && e.by.toLowerCase() !== f.by.toLowerCase())
+                    return false;
+                if (f.refundedTo !== undefined && e.refundedTo.toLowerCase() !== f.refundedTo.toLowerCase())
                     return false;
                 return true;
             }

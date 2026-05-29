@@ -1,13 +1,14 @@
 /**
- * Main FSM types (P2 §8 / P3.7b lock).
+ * Main FSM types.
  *
  * State union: Idle / Claiming / Working / Submitting / Submitted / Abandoned.
  *
  * 'Submitted' is the terminal-cycle state for the Main FSM closure — held
  * for ~0ms in normal flow but exists for type-system clarity + observability
- * if anyone instruments transitions. The Pending-Accept Monitor (P3.8) picks
- * up from here, driven by the pending_accept[] entry the FSM persisted.
- * 'Done' (Withdraw-confirmed) belongs to P3.8 and does NOT collide.
+ * if anyone instruments transitions. The Pending-Accept Monitor picks up from
+ * here, driven by the pending_accept[] entry the FSM persisted. 'Done'
+ * (Withdraw-confirmed) belongs to the Pending-Accept Monitor and does NOT
+ * collide.
  */
 
 import type { Logger } from 'pino';

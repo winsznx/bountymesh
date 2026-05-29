@@ -19,6 +19,10 @@ export const ALL_BOUNTYMESH_ERRORS = [
     'AlreadyWithdrawn',
     'Unauthorized',
     'ZeroHashRejected',
+    'DeadlineNotReached',
+    'NoDeadlineSet',
+    'BountyAlreadyTerminal',
+    'ReasonTooLong',
 ];
 export const ALL_TRACKS = ['Services', 'Social', 'Economy', 'Open'];
 export function isBountyMeshError(s) {

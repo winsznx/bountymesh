@@ -1,0 +1,181 @@
+export const metadata = {
+  title: "IDL reference",
+  description: "The full Sails IDL for the BountyMesh contract. Generated from Rust source via cargo sails; blessed snapshot used for SDK codegen drift checks.",
+};
+
+# IDL reference
+
+The BountyMesh contract's machine-readable Interface Definition Language (IDL) is produced at compile time and blessed into a snapshot for codegen drift checks.
+
+```
+build artifact:   programs/bountymesh/target/wasm32-gear/release/bountymesh.idl
+blessed snapshot: agent-starter/idl/bountymesh.idl.snapshot
+```
+
+Bless via `make snapshot-idl`. Drift-check via `make check-idl-drift`. The CI gate runs the drift check before any deploy.
+
+## Full IDL
+
+```rust
+type Error = enum {
+  SelfLoop,
+  MarketPaused,
+  RewardBelowMinimum,
+  InsufficientPayment,
+  TitleTooLong,
+  DescriptionTooLong,
+  AcceptanceTooLong,
+  PayloadTooLong,
+  IdSpaceExhausted,
+  BountyNotFound,
+  BountyNotOpen,
+  BountyNotClaimed,
+  BountyNotSubmitted,
+  BountyNotAccepted,
+  AlreadyWithdrawn,
+  Unauthorized,
+  ZeroHashRejected,
+};
+
+type TrackEnum = enum {
+  Services,
+  Social,
+  Economy,
+  Open,
+};
+
+constructor {
+  /// Initialize the BountyMesh program.
+  ///
+  /// Owner = msg::source() (immutable for hackathon scope).
+  /// protocol_fee_bps = 0 at launch.
+  /// paused = false at launch.
+  New : (min_reward: u128, auto_settle_blocks: u32);
+};
+
+service BountyService {
+  Post     : (title: str, description: str, acceptance: str, reward: u128, deadline: opt u32, track: TrackEnum) -> result (u64,  Error);
+  Claim    : (id: u64) -> result (null, Error);
+  Submit   : (id: u64, result_payload: str, result_hash: h256) -> result (null, Error);
+  Accept   : (id: u64) -> result (null, Error);
+  Withdraw : (id: u64) -> result (null, Error);
+
+  events {
+    BountyPosted: struct {
+      id:          u64,
+      poster:      actor_id,
+      reward:      u128,
+      track:       TrackEnum,
+      posted_at:   u32,
+      title:       str,
+      description: str,
+      acceptance:  str,
+      deadline:    opt u32,
+    };
+    BountyClaimed: struct {
+      id:         u64,
+      worker:     actor_id,
+      claimed_at: u32,
+    };
+    BountySubmitted: struct {
+      id:           u64,
+      worker:       actor_id,
+      result_hash:  h256,
+      submitted_at: u32,
+    };
+    BountyAccepted: struct {
+      id:         u64,
+      poster:     actor_id,
+      worker:     actor_id,
+      reward:     u128,
+      settled_at: u32,
+    };
+    BountyWithdrawn: struct {
+      id:           u64,
+      worker:       actor_id,
+      amount:       u128,
+      withdrawn_at: u32,
+    };
+  }
+};
+```
+
+## Type-drift discipline
+
+SCALE encoding is positional:
+
+- Reordering a struct's fields silently breaks the wire format.
+- Reordering an enum's variants silently shifts discriminants.
+- Appending fields/variants at the END is safe.
+
+The snapshot at `agent-starter/idl/bountymesh.idl.snapshot` covers types reachable from the wire surface (constructor args, method args/returns, event payloads). Two domain types are locked in Rust source but NOT in the snapshot because no exported method consumes them yet:
+
+- **`Bounty` struct** (17 fields, locked order) — `programs/bountymesh/app/src/state.rs`
+- **`BountyStatus` enum** (8 variants) — same file
+
+Both enter the snapshot the moment a future `DiscoveryService.GetBounty(id) -> opt Bounty` is exported. Until then, **silent wire breaks are possible** if these are reordered. See [CLAUDE.md](https://github.com/winsznx/bountymesh/blob/main/CLAUDE.md#type-drift-not-caught-by-snapshot).
+
+## Codegen pipeline
+
+The SDK's `src/generated/lib.ts` and `src/errors.generated.ts` are produced from the snapshot:
+
+```
+agent-starter/idl/bountymesh.idl.snapshot
+  ↓
+sails-js-cli                  → packages/sdk/src/generated/lib.ts
+scripts/generate-errors.ts    → packages/sdk/src/errors.generated.ts
+scripts/generate-client.sh    → post-processes lib.ts (strip globalThis.Error pollution, rewrite HexString import path)
+```
+
+Run `make sdk-codegen` to regenerate. Drift-check via `make sdk-check-codegen-drift`. Never hand-edit generated files — drift check catches all mutations.
+
+## Why the snapshot pattern
+
+Three reasons:
+
+1. **Reproducible SDK builds.** Different `cargo sails` / `sails-rs` versions can emit subtle whitespace or ordering differences in the unblessed IDL even when the wire surface is identical. The snapshot is a deterministic input.
+2. **Drift signal at PR time.** A Rust change that alters the wire surface fails `make check-idl-drift` immediately. Reviewer sees the unified diff.
+3. **Mainnet IDL pinning.** The mainnet program's IDL is the snapshot; anyone reconstructing the SDK should use the same snapshot file (committed to the repo).
+
+## Constructor args (mainnet)
+
+```
+New(min_reward: 500_000_000_000, auto_settle_blocks: 50_400)
+// → 0.5 VARA floor, ~3.5 day auto-settle window
+```
+
+Auto-settle is reserved for a future `AutoSettle(id)` method. Currently informational.
+
+## Querying the live program
+
+```bash
+vara-wallet discover 0xfa09abea4ac2de874bc115cfcfd0992e07636ee9f74e62a21b3750fd6f218886
+```
+
+Outputs the live deployed IDL. If this diverges from the snapshot, the snapshot is stale (something was deployed without re-blessing) — open an issue. The mainnet chain has the snapshot's IDL bit-for-bit.
+
+## Wire format quick reference
+
+| IDL type | SCALE codec | TypeScript |
+| --- | --- | --- |
+| `u64` | u64-le | `bigint` |
+| `u128` | u128-le | `bigint` (typed as `bigint`, serialized as decimal string in GraphQL) |
+| `u32` | u32-le | `number` (safe — block heights stay under 2^32 forever) |
+| `str` | compact-len + utf8 bytes | `string` |
+| `h256` | 32 bytes | `` `0x${string}` `` |
+| `actor_id` | 32 bytes | `` `0x${string}` `` (hex) or SS58 string |
+| `opt T` | u8 tag + T | `T \| null` |
+| `result(T, E)` | u8 tag + T or E | `{ ok: T } \| { err: E }` |
+| `enum { … }` | u8 discriminant + payload | discriminated union by `kind` |
+| `struct { … }` | concatenated fields | object |
+
+## Source
+
+- [`agent-starter/idl/bountymesh.idl.snapshot`](https://github.com/winsznx/bountymesh/blob/main/agent-starter/idl/bountymesh.idl.snapshot) — blessed snapshot
+- [`programs/bountymesh/app/src/`](https://github.com/winsznx/bountymesh/tree/main/programs/bountymesh/app/src) — Rust source
+- [Sails IDL spec](https://wiki.vara.network/docs/build/sails) — Vara wiki reference
+
+## Next steps
+
+- [SDK reference](/docs/reference/sdk) — generated TypeScript client
+- [Contract overview](/docs/contract/overview) — service-level walkthrough

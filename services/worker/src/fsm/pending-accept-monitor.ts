@@ -14,9 +14,9 @@
  *      path as live events; dedup via in-mutex re-read (withdraw.ts).
  *   4. Flip subscription to active; drain the buffered live events.
  *
- * Phase 6 prep (operator-locked): if the indexer is up to MAX_LAG=100
- * blocks behind chain at worker boot, recent Accepts may be missed.
- * Stuck-bounty edge case; mitigation TBD per AGENT_PROGRESS entry.
+ * Edge case (open): if the indexer is up to MAX_LAG=100 blocks behind chain
+ * at worker boot, recent Accepts may be missed. Stuck-bounty mitigation is a
+ * known follow-up.
  */
 
 import type { Logger } from 'pino';
@@ -102,7 +102,7 @@ export class PendingAcceptMonitor {
     const buffered = this.bootBuffer.splice(0, this.bootBuffer.length);
     for (const e of buffered) {
       // Buffered events were observed by the live subscription before flip;
-      // treat them as live-source for observability (operator P3.10b lock 4).
+      // treat them as live-source for observability.
       void this.processForEventId(e.id, 'live-subscription');
     }
     log.info({ op: 'monitor', stage: 'live', drained: buffered.length });
@@ -133,9 +133,9 @@ export class PendingAcceptMonitor {
       });
       return;
     }
-    // P3.10b discipline 4: source-discriminated event log proves WHICH path
-    // surfaced the Accept. Test 2 asserts source==='indexer-query' to verify
-    // the boot-resume GraphQL path fired (not the live channel race).
+    // Source-discriminated event log proves WHICH path surfaced the Accept.
+    // The integration test asserts source==='indexer-query' to verify the
+    // boot-resume GraphQL path fired (not the live channel race).
     this.deps.logger.info({
       op: 'monitor',
       event: source === 'indexer-query' ? 'boot-resume-fired' : 'live-fired',

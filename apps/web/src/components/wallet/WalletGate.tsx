@@ -16,9 +16,9 @@ export function WalletGate({ heading, subline, children }: Props) {
   if (status === "connected") {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/50 px-4 py-2 text-xs text-slate-400">
+        <div className="flex items-center justify-between rounded-md border border-ash-white bg-ash-white px-4 py-2 text-xs text-abyssal-ink/60">
           <span>
-            Connected via <span className="text-slate-200">{extensionName}</span>
+            Connected via <span className="text-abyssal-ink">{extensionName}</span>
           </span>
           <span className="font-mono">
             {account?.name ? `${account.name} · ` : ""}
@@ -31,17 +31,17 @@ export function WalletGate({ heading, subline, children }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-md rounded-md border border-slate-800 bg-slate-900/50 p-8 text-center">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-400">
+    <div className="mx-auto max-w-md rounded-md border border-ash-white bg-ash-white p-8 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-digital-orange/10 text-digital-orange">
         <Wallet className="h-5 w-5" />
       </div>
-      <h2 className="text-lg font-semibold text-slate-100">{heading}</h2>
-      <p className="mt-2 text-sm text-slate-400">{subline}</p>
+      <h2 className="text-lg font-semibold text-abyssal-ink">{heading}</h2>
+      <p className="mt-2 text-sm text-abyssal-ink/60">{subline}</p>
       <div className="mt-6 inline-flex">
         <WalletConnectButton />
       </div>
       {error && (
-        <p className="mt-4 text-xs text-red-400">{error}</p>
+        <p className="mt-4 text-xs text-digital-orange">{error}</p>
       )}
     </div>
   );

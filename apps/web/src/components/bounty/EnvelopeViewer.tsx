@@ -73,14 +73,14 @@ export function EnvelopeViewer({ bountyId, resultHash }: Props) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-medium uppercase tracking-wider text-slate-400">
+      <h2 className="text-xs font-medium uppercase tracking-wider text-abyssal-ink/60">
         Submission envelope
       </h2>
 
-      <div className="space-y-3 rounded-md border border-slate-800 bg-slate-900/60 p-4">
+      <div className="space-y-3 rounded-md border border-ash-white bg-ash-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <div className="text-xs uppercase tracking-wider text-slate-500">
+            <div className="text-xs uppercase tracking-wider text-abyssal-ink/40">
               result_hash (on-chain)
             </div>
             {resultHash ? (
@@ -88,13 +88,13 @@ export function EnvelopeViewer({ bountyId, resultHash }: Props) {
                 type="button"
                 onClick={onCopyHash}
                 title={resultHash}
-                className="inline-flex items-center gap-2 font-mono text-sm text-cyan-400 hover:text-cyan-300"
+                className="inline-flex items-center gap-2 font-mono text-sm text-digital-orange hover:text-digital-orange"
               >
                 {resultHash}
                 <Copy className="h-3 w-3" aria-hidden />
               </button>
             ) : (
-              <div className="text-sm italic text-slate-500">no hash yet</div>
+              <div className="text-sm italic text-abyssal-ink/40">no hash yet</div>
             )}
           </div>
           <VerificationBadge
@@ -158,11 +158,11 @@ function EnvelopeBody({
   onCopy: () => void;
 }) {
   if (envelopeLoading) {
-    return <div className="h-24 animate-pulse rounded-sm bg-slate-800/50" />;
+    return <div className="h-24 animate-pulse rounded-sm bg-ash-white" />;
   }
   if (envelopeError) {
     return (
-      <p className="py-4 text-sm text-slate-500">
+      <p className="py-4 text-sm text-abyssal-ink/40">
         Envelope not available — payload may not be indexed yet.
       </p>
     );
@@ -171,17 +171,17 @@ function EnvelopeBody({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="text-xs uppercase tracking-wider text-slate-500">payload</div>
+        <div className="text-xs uppercase tracking-wider text-abyssal-ink/40">payload</div>
         <button
           type="button"
           onClick={onCopy}
-          className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-400"
+          className="inline-flex items-center gap-1 text-xs text-abyssal-ink/60 hover:text-digital-orange"
         >
           <Copy className="h-3 w-3" />
           Copy raw
         </button>
       </div>
-      <pre className="max-h-96 overflow-auto rounded-md border border-slate-800 bg-slate-950 p-3 font-mono text-xs leading-relaxed text-slate-300">
+      <pre className="max-h-96 overflow-auto rounded-md border border-ash-white bg-basalt-canvas p-3 font-mono text-xs leading-relaxed text-abyssal-ink/80">
         {envelope.pretty}
       </pre>
     </div>
@@ -198,9 +198,9 @@ function Pill({
   children: React.ReactNode;
 }) {
   const styles = {
-    emerald: "text-emerald-400 bg-emerald-400/10",
-    red: "text-red-400 bg-red-400/10",
-    slate: "text-slate-400 bg-slate-400/10",
+    emerald: "text-cyber-violet bg-cyber-violet/10",
+    red: "text-digital-orange bg-digital-orange/10",
+    slate: "text-abyssal-ink/60 bg-abyssal-ink/60/10",
     orange: "text-orange-400 bg-orange-400/10",
   }[tone];
   return (

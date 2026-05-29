@@ -53,10 +53,9 @@ export interface Bounty {
 }
 
 export function parseBounty(w: BountyWire): Bounty {
-  // Indexer stores status='Accepted' + withdrawn=true (Phase 1 contract:
-  // Withdraw is a flag flip, not a status transition). Frontend's
-  // BountyStatus enum exposes Withdrawn as its own status per PRD §3 ;
-  // derive here.
+  // Indexer stores status='Accepted' + withdrawn=true — Withdraw is a flag
+  // flip, not a status transition. Frontend's BountyStatus enum exposes
+  // Withdrawn as its own status; derive here.
   const effectiveStatus: BountyStatus =
     w.status === "Accepted" && w.withdrawn ? "Withdrawn" : w.status;
   return {
@@ -87,7 +86,11 @@ export type BountyEventName =
   | "BountyClaimed"
   | "BountySubmitted"
   | "BountyAccepted"
-  | "BountyWithdrawn";
+  | "BountyWithdrawn"
+  | "BountyCancelled"
+  | "BountyRejected"
+  | "BountyTimedOut"
+  | "BountyRevoked";
 
 export interface BountyEventWire {
   eventUid: string;

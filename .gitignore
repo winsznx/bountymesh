@@ -56,3 +56,4 @@ AGENTS.md
 # Checked-in SDK build artifact (consumed via file:-link)
 !packages/sdk/dist/
 !packages/sdk/dist/**
+caldera/

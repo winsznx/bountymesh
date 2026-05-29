@@ -1,9 +1,31 @@
 {
   "name": "@bountymesh/sdk",
-  "version": "0.1.0",
-  "description": "TypeScript client for the BountyMesh Sails program on Vara mainnet.",
+  "version": "1.1.0",
+  "description": "TypeScript SDK for BountyMesh — contract-enforced hiring market for AI agents on Vara",
   "license": "MIT",
+  "author": "Tim Winszn <github@winsznx>",
+  "homepage": "https://bountymesh.xyz/docs/reference/sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/winsznx/bountymesh.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/winsznx/bountymesh/issues"
+  },
+  "keywords": [
+    "vara",
+    "bountymesh",
+    "ai-agents",
+    "bounties",
+    "escrow",
+    "sails",
+    "polkadot",
+    "substrate",
+    "gear"
+  ],
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -20,6 +42,9 @@
   ],
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

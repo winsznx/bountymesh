@@ -1,0 +1,171 @@
+export const metadata = {
+  title: "Bounty lifecycle",
+  description: "The BountyStatus state machine: 8 declared variants, 4 currently reachable. Every transition gated by typed guards.",
+};
+
+# Bounty lifecycle
+
+A bounty moves through a state machine encoded in the on-chain `BountyStatus` enum. Eight variants are declared; **four are reachable today** (Open, Claimed, Submitted, Accepted). The remaining four are reserved for future governance methods.
+
+```rust
+pub enum BountyStatus {
+    Open,
+    Claimed,
+    Submitted,
+    Accepted,
+    Rejected,    // declared, not yet reachable
+    Cancelled,   // declared, not yet reachable
+    TimedOut,    // declared, not yet reachable
+    Revoked,     // declared, not yet reachable
+}
+```
+
+All eight variants are SCALE-encoded into the IDL up front. Declaring later would silently shift discriminants and break decoders. See [type-drift rules](https://github.com/winsznx/bountymesh/blob/main/CLAUDE.md#type-drift-not-caught-by-snapshot).
+
+## Reachable transitions (today)
+
+```
+                Post                Claim              Submit             Accept            Withdraw
+  [void] ───────────────▶ Open ───────────▶ Claimed ──────────▶ Submitted ────────▶ Accepted ────────▶ (withdrawn=true)
+                          │
+                          │ no method moves out of Open
+                          │ except Claim
+                          ▼
+                       (Cancel/TimedOut — future)
+```
+
+A bounty is "closed" when `status == Accepted && withdrawn == true`. There is no further state change; the row is permanent.
+
+## State-by-state guard reference
+
+<ApiMethod kind="event" path="Open" />
+
+Set by `Post`. The bounty is visible to any worker daemon.
+
+**Permitted transitions:**
+- `Claim` → `Claimed` (any non-self, non-paused caller)
+
+**Rejections from Open:**
+
+<ParamTable>
+  <Param name="Submit" type="Error::BountyNotClaimed">
+    Cannot skip Claim.
+  </Param>
+  <Param name="Accept" type="Error::BountyNotSubmitted">
+    Cannot skip Submit.
+  </Param>
+  <Param name="Withdraw" type="Error::BountyNotAccepted">
+    Cannot withdraw an unaccepted reward.
+  </Param>
+</ParamTable>
+
+<ApiMethod kind="event" path="Claimed" />
+
+Set by `Claim`. The bounty has a worker assigned (`bounty.worker == Some(claimer)`); no other worker can claim.
+
+**Permitted transitions:**
+- `Submit` → `Submitted` (only `msg::source() == bounty.worker`)
+
+**Rejections from Claimed:**
+
+<ParamTable>
+  <Param name="Claim (second caller)" type="Error::BountyNotOpen">
+    First wallet wins.
+  </Param>
+  <Param name="Submit (non-worker)" type="Error::Unauthorized">
+    Only the assigned worker can submit.
+  </Param>
+  <Param name="Accept" type="Error::BountyNotSubmitted">
+    Cannot accept without a submission.
+  </Param>
+  <Param name="Withdraw" type="Error::BountyNotAccepted">
+    Cannot withdraw before Accept.
+  </Param>
+</ParamTable>
+
+<ApiMethod kind="event" path="Submitted" />
+
+Set by `Submit`. The bounty has an envelope hash committed (`bounty.result_hash == Some(h)`) and the canonical-JSON payload stored (`bounty.result_payload == Some(json)`).
+
+**Permitted transitions:**
+- `Accept` → `Accepted` (only `msg::source() == bounty.poster`)
+
+**Rejections from Submitted:**
+
+<ParamTable>
+  <Param name="Submit (second time)" type="Error::BountyNotClaimed">
+    Re-submission rejected — only one envelope per claim.
+  </Param>
+  <Param name="Accept (non-poster)" type="Error::Unauthorized">
+    Only the bounty poster can accept.
+  </Param>
+  <Param name="Withdraw" type="Error::BountyNotAccepted">
+    Worker cannot pull funds before poster accepts.
+  </Param>
+</ParamTable>
+
+<ApiMethod kind="event" path="Accepted" />
+
+Set by `Accept`. The settlement is acknowledged by the poster. `bounty.settled_at` is the accept block.
+
+`bounty.withdrawn` is initially `false`. The reward stays in program escrow until the worker calls `Withdraw`.
+
+**Permitted transitions:**
+- `Withdraw` (only `msg::source() == bounty.worker`, idempotent)
+
+**Rejections from Accepted:**
+
+<ParamTable>
+  <Param name="Accept (second time)" type="Error::BountyNotSubmitted">
+    Re-accept rejected.
+  </Param>
+  <Param name="Withdraw (non-worker)" type="Error::Unauthorized">
+    Only the assigned worker can withdraw.
+  </Param>
+  <Param name="Withdraw (after success)" type="Error::AlreadyWithdrawn">
+    `bounty.withdrawn` is set to `true` permanently. Idempotency guard.
+  </Param>
+</ParamTable>
+
+## Index-map bookkeeping
+
+Every status transition also updates `bounties_by_status`:
+
+```
+Post     → push id to bounties_by_status[Open]
+Claim    → retain id out of Open, push to Claimed; also push to bounties_by_worker[worker]
+Submit   → retain id out of Claimed, push to Submitted
+Accept   → retain id out of Submitted, push to Accepted
+Withdraw → no movement (status stays Accepted); only bounty.withdrawn flips
+```
+
+The `bounties_by_poster` and `bounties_by_track` maps are append-only at Post — never re-indexed.
+
+## Reserved variants (declared, not reachable today)
+
+| Variant | Triggered by | Caller |
+| --- | --- | --- |
+| `Cancelled` | `Cancel(id)` | poster, while status == Open |
+| `Rejected` | `Reject(id)` | poster, while status == Submitted |
+| `TimedOut` | `AutoSettle(id)` | anyone, after deadline window |
+| `Revoked` | `Revoke(id)` | governance only |
+
+None of these methods are exported in the current IDL. They are documented here for [SDK error-set completeness](/docs/contract/errors) and so consumers know which transitions to expect post-upgrade.
+
+<Callout type="info" title="Why declare them at all?">
+  Adding a SCALE enum variant later shifts every later variant's discriminant. Cached IDL snapshots in worker code would silently misdecode. Pre-declaring locks the discriminant at deploy time.
+</Callout>
+
+## Event projection
+
+Each transition emits a typed event. The indexer projects these into the `bounties` table; consumers see status flips via subscriptions. See [Events](/docs/contract/events) for full payload schemas.
+
+## Crash recovery
+
+The reference worker persists `pending_accept` state to `worker.state.json` and recovers across restarts. Resume logic distinguishes `Open → Cancel` from `Open → indexer lag` via bounded retry — see [`recoverInflight`](https://github.com/winsznx/bountymesh/blob/main/services/worker/src/lifecycle/recover.ts) and the lifecycle FSM doc at [Build a worker daemon](/docs/integration/worker-daemon).
+
+## Next steps
+
+- [Two-phase escrow](/docs/concepts/escrow) — why Accept and Withdraw are separate
+- [Anti-cheat](/docs/concepts/anti-cheat) — self-loop reject and refund correctness
+- [Contract methods](/docs/contract/overview) — every method's exact wire shape

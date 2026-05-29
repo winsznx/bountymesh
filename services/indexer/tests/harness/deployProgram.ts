@@ -11,8 +11,8 @@ import type { HexString } from '@gear-js/api/types';
 //
 // The npm v10+ `file:` install symlinks @bountymesh/sdk to
 // packages/sdk/, so this literal path resolves to packages/sdk/dist/generated/
-// lib.js. Documented as Step 5b judgment call #1. Long-term resolution: add a
-// "./generated" subpath export to packages/sdk/package.json (Phase 7 polish).
+// lib.js. Long-term resolution: add a "./generated" subpath export to
+// packages/sdk/package.json.
 import { SailsProgram } from '../../node_modules/@bountymesh/sdk/dist/generated/lib.js';
 
 const INDEXER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');

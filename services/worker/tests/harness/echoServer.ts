@@ -1,31 +1,41 @@
 /**
- * Localhost echo server for Anthropic /v1/messages.
+ * Localhost echo server for the OpenAI-compatible Chat Completions endpoint
+ * used by Groq.
  *
- * Returns a deterministic message-shaped response for every POST. Used by
- * P3.9b e2e test (and future P3.10 failure-mode tests) to exercise the
- * real ClaudeApiAdapter HTTP path WITHOUT requiring an ANTHROPIC_API_KEY
- * or producing real Anthropic spend. Bound to 127.0.0.1:0 (OS-assigned
- * port) for parallel-test isolation.
+ * Returns a deterministic chat-completions-shaped response for every POST to
+ * /openai/v1/chat/completions. Used by failure-mode integration tests to
+ * exercise the real GroqAdapter HTTP path WITHOUT requiring a real GROQ_API_KEY
+ * or producing real Groq spend. Bound to 127.0.0.1:0 (OS-assigned port) for
+ * parallel-test isolation.
  *
- * Response shape mirrors Anthropic's typed Message — minimal but complete
- * enough that @anthropic-ai/sdk parses it without choking. Same response
- * body for every request → envelope hash reproducible across runs given
- * the same bounty id + worker address.
+ * Response shape mirrors the OpenAI Chat Completions response — minimal but
+ * complete enough that the openai SDK parses it without choking. Same response
+ * body for every request → envelope hash reproducible across runs given the
+ * same bounty id + worker address.
  */
 
 import { createServer, type Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 
+const RESPONSE_TEXT = 'Bounty fulfilled deterministically.';
+
 const RESPONSE_TEMPLATE = {
-  type: 'message' as const,
-  role: 'assistant' as const,
-  model: 'claude-opus-4-7',
-  content: [{ type: 'text' as const, text: 'Bounty fulfilled deterministically.' }],
-  stop_reason: 'end_turn' as const,
-  stop_sequence: null,
+  object: 'chat.completion' as const,
+  model: 'llama-3.3-70b-versatile',
+  choices: [
+    {
+      index: 0,
+      message: {
+        role: 'assistant' as const,
+        content: RESPONSE_TEXT,
+      },
+      finish_reason: 'stop' as const,
+    },
+  ],
   usage: {
-    input_tokens: 10,
-    output_tokens: 5,
+    prompt_tokens: 10,
+    completion_tokens: 5,
+    total_tokens: 15,
   },
 };
 
@@ -38,15 +48,15 @@ export interface EchoServerHandle {
 export async function startEchoServer(): Promise<EchoServerHandle> {
   return new Promise<EchoServerHandle>((resolveStart, rejectStart) => {
     const server: Server = createServer((req, res) => {
-      // Drain the body so the request fully resolves before we respond.
       const chunks: Buffer[] = [];
       req.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
       });
       req.on('end', () => {
-        if (req.method === 'POST' && req.url === '/v1/messages') {
+        if (req.method === 'POST' && req.url === '/openai/v1/chat/completions') {
           const body = {
-            id: `msg_${randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            id: `chatcmpl-${randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            created: Math.floor(Date.now() / 1000),
             ...RESPONSE_TEMPLATE,
           };
           res.statusCode = 200;
@@ -68,7 +78,9 @@ export async function startEchoServer(): Promise<EchoServerHandle> {
         return;
       }
       const port = addr.port;
-      const url = `http://127.0.0.1:${port}`;
+      // GroqAdapter constructs base URL as `${baseURL}/chat/completions`, so
+      // baseURL must end in `/openai/v1` to land on `/openai/v1/chat/completions`.
+      const url = `http://127.0.0.1:${port}/openai/v1`;
       resolveStart({
         url,
         port,

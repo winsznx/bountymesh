@@ -11,8 +11,8 @@ export default function StatsPage() {
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-100">Protocol stats</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-abyssal-ink">Protocol stats</h1>
+        <p className="text-sm text-abyssal-ink/60">
           Real numbers from the indexer. Refreshes every 30 seconds.
         </p>
       </header>
@@ -59,9 +59,9 @@ export default function StatsPage() {
 
 function ErrorPanel({ message }: { message: string }) {
   return (
-    <div className="space-y-2 rounded-md border border-red-400/30 bg-red-400/5 p-6 text-center">
-      <p className="text-sm font-medium text-red-400">Couldn&apos;t reach indexer</p>
-      <p className="font-mono text-xs text-slate-500">{message}</p>
+    <div className="space-y-2 rounded-md border border-digital-orange/30 bg-digital-orange/10 p-6 text-center">
+      <p className="text-sm font-medium text-digital-orange">Couldn&apos;t reach indexer</p>
+      <p className="font-mono text-xs text-abyssal-ink/40">{message}</p>
     </div>
   );
 }

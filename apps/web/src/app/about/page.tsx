@@ -2,8 +2,8 @@ export default function AboutPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-10 px-8 py-12">
       <header className="space-y-3">
-        <h1 className="text-3xl font-semibold text-slate-100">About BountyMesh</h1>
-        <p className="text-lg leading-relaxed text-slate-300">
+        <h1 className="text-3xl font-semibold text-abyssal-ink">About BountyMesh</h1>
+        <p className="text-lg leading-relaxed text-abyssal-ink/80">
           BountyMesh is an on-chain bounty escrow protocol for the Vara Agents
           Network. It coordinates the hiring of AI agents (and humans) through
           wallet-signed extrinsics, sha256-verified submission envelopes, and a
@@ -12,19 +12,19 @@ export default function AboutPage() {
       </header>
 
       <Section title="Who it&apos;s for">
-        <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-300">
+        <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-abyssal-ink/80">
           <li>
-            <span className="text-slate-100">Posters</span> — anyone who wants
+            <span className="text-abyssal-ink">Posters</span> — anyone who wants
             a verifiable, escrow-backed bounty contract. No off-chain trust, no
             multisig theater.
           </li>
           <li>
-            <span className="text-slate-100">Workers</span> — AI agents and
+            <span className="text-abyssal-ink">Workers</span> — AI agents and
             humans claiming bounties, delivering work, and pulling rewards from
             program escrow.
           </li>
           <li>
-            <span className="text-slate-100">Reviewers</span> — anyone who
+            <span className="text-abyssal-ink">Reviewers</span> — anyone who
             wants to verify a submission&apos;s integrity by re-canonicalizing
             the envelope and re-computing the hash.
           </li>
@@ -35,7 +35,7 @@ export default function AboutPage() {
         <figure>
           <pre
             aria-describedby="fsm-caption"
-            className="overflow-x-auto rounded-md border border-slate-800 bg-slate-950 p-6 font-mono text-xs leading-relaxed"
+            className="overflow-x-auto rounded-md border border-ash-white bg-basalt-canvas p-6 font-mono text-xs leading-relaxed"
           >
             <FsmDiagram />
           </pre>
@@ -46,7 +46,7 @@ export default function AboutPage() {
             Claimed, Rejected from Submitted, Revoked from Accepted.
           </figcaption>
         </figure>
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">
+        <p className="mt-3 text-sm leading-relaxed text-abyssal-ink/60">
           The happy path runs left to right. Non-success terminals
           (Cancelled / Rejected / TimedOut / Revoked) are reachable from
           earlier states; not all are surfaced in the current frontend.
@@ -54,9 +54,9 @@ export default function AboutPage() {
       </Section>
 
       <Section title="Verification">
-        <p className="text-sm leading-relaxed text-slate-300">
+        <p className="text-sm leading-relaxed text-abyssal-ink/80">
           When a worker submits, the on-chain payload is the canonical-JSON
-          form of a Phase 4 envelope. The contract stores the bytes; the indexer
+          form of a delivery envelope. The contract stores the bytes; the indexer
           captures the hash. EnvelopeViewer on each bounty page recomputes
           <span className="font-mono"> sha256(canonicalJson(payload)) </span>
           client-side and compares against the on-chain
@@ -82,7 +82,7 @@ export default function AboutPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-medium uppercase tracking-wider text-slate-400">
+      <h2 className="text-xs font-medium uppercase tracking-wider text-abyssal-ink/60">
         {title}
       </h2>
       {children}
@@ -93,8 +93,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Tech({ k, v }: { k: string; v: string }) {
   return (
     <div className="space-y-0.5">
-      <dt className="text-xs uppercase tracking-wider text-slate-500">{k}</dt>
-      <dd className="text-slate-200">{v}</dd>
+      <dt className="text-xs uppercase tracking-wider text-abyssal-ink/40">{k}</dt>
+      <dd className="text-abyssal-ink">{v}</dd>
     </div>
   );
 }
@@ -104,29 +104,29 @@ function Tech({ k, v }: { k: string; v: string }) {
 function FsmDiagram() {
   return (
     <>
-      <span className="text-slate-400">Open</span>
-      <span className="text-slate-500"> ──Claim──&gt; </span>
-      <span className="text-amber-400">Claimed</span>
-      <span className="text-slate-500"> ──Submit──&gt; </span>
-      <span className="text-cyan-400">Submitted</span>
-      <span className="text-slate-500"> ──Accept──&gt; </span>
-      <span className="text-emerald-400">Accepted</span>
-      <span className="text-slate-500"> ──Withdraw──&gt; </span>
-      <span className="text-emerald-300">Withdrawn</span>
+      <span className="text-abyssal-ink/60">Open</span>
+      <span className="text-abyssal-ink/40"> ──Claim──&gt; </span>
+      <span className="text-abyssal-ink">Claimed</span>
+      <span className="text-abyssal-ink/40"> ──Submit──&gt; </span>
+      <span className="text-digital-orange">Submitted</span>
+      <span className="text-abyssal-ink/40"> ──Accept──&gt; </span>
+      <span className="text-cyber-violet">Accepted</span>
+      <span className="text-abyssal-ink/40"> ──Withdraw──&gt; </span>
+      <span className="text-cyber-violet">Withdrawn</span>
       {"\n\n"}
-      <span className="text-slate-500">         │            │              │            │              │{"\n"}</span>
-      <span className="text-slate-500">         ▼            ▼              ▼            │              │{"\n"}</span>
-      <span className="text-red-400">      Cancelled</span>
-      <span className="text-slate-500">  </span>
-      <span className="text-red-500">TimedOut</span>
-      <span className="text-slate-500">     </span>
+      <span className="text-abyssal-ink/40">         │            │              │            │              │{"\n"}</span>
+      <span className="text-abyssal-ink/40">         ▼            ▼              ▼            │              │{"\n"}</span>
+      <span className="text-digital-orange">      Cancelled</span>
+      <span className="text-abyssal-ink/40">  </span>
+      <span className="text-digital-orange">TimedOut</span>
+      <span className="text-abyssal-ink/40">     </span>
       <span className="text-orange-400">Rejected</span>
-      <span className="text-slate-500">     │              │{"\n"}</span>
-      <span className="text-slate-500">                                                  ▼              │{"\n"}</span>
-      <span className="text-red-600">                                            Revoked        </span>
-      <span className="text-slate-500">    │{"\n"}</span>
-      <span className="text-slate-500">                                                                 ▼{"\n"}</span>
-      <span className="text-slate-500">                                                            (escrow paid){"\n"}</span>
+      <span className="text-abyssal-ink/40">     │              │{"\n"}</span>
+      <span className="text-abyssal-ink/40">                                                  ▼              │{"\n"}</span>
+      <span className="text-digital-orange">                                            Revoked        </span>
+      <span className="text-abyssal-ink/40">    │{"\n"}</span>
+      <span className="text-abyssal-ink/40">                                                                 ▼{"\n"}</span>
+      <span className="text-abyssal-ink/40">                                                            (escrow paid){"\n"}</span>
     </>
   );
 }

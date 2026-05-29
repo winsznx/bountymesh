@@ -11,19 +11,19 @@ export function AgentRow({ agent }: { agent: Agent }) {
   return (
     <div
       role="row"
-      className="hidden items-center gap-4 border-b border-slate-800/70 px-4 py-3 md:grid"
+      className="hidden items-center gap-4 border-b border-abyssal-ink/10 px-4 py-3 md:grid"
       style={{ gridTemplateColumns: GRID_TEMPLATE }}
     >
       <div>
         <AddressChip address={agent.address} chainSS58={chainSS58} />
       </div>
-      <div className="font-mono text-sm text-slate-100">{agent.claimCount}</div>
-      <div className="font-mono text-sm text-slate-100">{agent.submitCount}</div>
-      <div className="font-mono text-sm text-slate-300">{agent.distinctBounties}</div>
-      <div className="font-mono text-xs text-slate-400">
+      <div className="font-mono text-sm text-abyssal-ink">{agent.claimCount}</div>
+      <div className="font-mono text-sm text-abyssal-ink">{agent.submitCount}</div>
+      <div className="font-mono text-sm text-abyssal-ink/80">{agent.distinctBounties}</div>
+      <div className="font-mono text-xs text-abyssal-ink/60">
         #{agent.lastActiveBlock.toLocaleString()}
       </div>
-      <div className="font-mono text-sm text-slate-300">{agent.deliveryRatePct}%</div>
+      <div className="font-mono text-sm text-abyssal-ink/80">{agent.deliveryRatePct}%</div>
     </div>
   );
 }

@@ -44,11 +44,11 @@ export interface AdapterOutput {
 /**
  * Adapter execute() options.
  *
- * crashResumed (discipline note D): true if boot detected status='Working'
- * for this bountyId — the worker crashed mid-execution and we're re-trying.
- * Threaded through to envelope.crash_resumed for reviewer visibility. The
- * state machine (P3.7+) detects the resume-from-Working condition and
- * supplies the flag; the adapter itself does NOT read worker state.
+ * crashResumed: true if boot detected status='Working' for this bountyId — the
+ * worker crashed mid-execution and we're re-trying. Threaded through to
+ * envelope.crash_resumed for reviewer visibility. The state machine detects
+ * the resume-from-Working condition and supplies the flag; the adapter itself
+ * does NOT read worker state.
  */
 export interface ExecuteOptions {
   crashResumed: boolean;

@@ -1,12 +1,11 @@
-//! Service-level events — PRD §5.4, all five variants declared in 5a.
+//! Service-level events — all variants declared up front.
 //!
-//! Only BountyPosted is emitted from Post (this step). Remaining variants are
-//! declared now so SCALE enum encoding is stable across Steps 5b–5e and the
-//! Phase 3 indexer schema can be written once.
+//! Variants are declared in their final order so SCALE enum encoding is stable
+//! and the indexer schema can be written once. New variants only at the end.
 
 use sails_rs::prelude::*;
 
-use crate::state::{BountyId, TrackEnum};
+use crate::state::{BountyId, BountyStatus, TrackEnum};
 
 #[sails_rs::event]
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq)]
@@ -15,10 +14,8 @@ use crate::state::{BountyId, TrackEnum};
 pub enum Event {
     BountyPosted {
         // F1: title/description/acceptance/deadline appended AFTER posted_at.
-        // SCALE encodes positionally; reorder is a silent wire break per
-        // CLAUDE.md "Type drift not caught by snapshot". Existing five fields
-        // are NOT reshuffled. New fields go at the end in the order emitted
-        // by service.rs Post (F1.1).
+        // SCALE encodes positionally; reorder is a silent wire break. New
+        // fields go at the end in the order emitted by service.rs Post.
         id: BountyId,
         poster: ActorId,
         reward: u128,
@@ -52,5 +49,35 @@ pub enum Event {
         worker: ActorId,
         amount: u128,
         withdrawn_at: u32,
+    },
+    // === v2 additions: appended at the END so existing SCALE discriminants
+    // stay stable for SDK consumers built against the v1 snapshot. Adding here
+    // means the indexer's chain/decode.ts needs new branches; CLAUDE.md type-
+    // drift discipline mandates the snapshot bless + drift-check re-runs. ===
+    BountyCancelled {
+        id: BountyId,
+        by: ActorId,
+        refunded: u128,
+        cancelled_at: u32,
+    },
+    BountyRejected {
+        id: BountyId,
+        by: ActorId,
+        worker: ActorId,
+        reason: Option<String>,
+        rejected_at: u32,
+    },
+    BountyTimedOut {
+        id: BountyId,
+        last_state: BountyStatus,
+        called_by: ActorId,
+        refunded_to: ActorId,
+        timed_out_at: u32,
+    },
+    BountyRevoked {
+        id: BountyId,
+        by: ActorId,
+        refunded_to: ActorId,
+        revoked_at: u32,
     },
 }

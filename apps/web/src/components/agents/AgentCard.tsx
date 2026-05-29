@@ -8,7 +8,7 @@ export function AgentCard({ agent }: { agent: Agent }) {
   const { chainSS58 } = useWallet();
 
   return (
-    <div className="space-y-4 border-b border-slate-800/70 px-4 py-4 md:hidden">
+    <div className="space-y-4 border-b border-abyssal-ink/10 px-4 py-4 md:hidden">
       <div>
         <AddressChip address={agent.address} chainSS58={chainSS58} label="worker" />
       </div>
@@ -19,9 +19,9 @@ export function AgentCard({ agent }: { agent: Agent }) {
         <Stat label="Bounties" value={agent.distinctBounties} />
       </dl>
 
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-abyssal-ink/40">
         <span className="font-mono">last #{agent.lastActiveBlock.toLocaleString()}</span>
-        <span className="font-mono text-slate-300">{agent.deliveryRatePct}% delivery</span>
+        <span className="font-mono text-abyssal-ink/80">{agent.deliveryRatePct}% delivery</span>
       </div>
     </div>
   );
@@ -29,9 +29,9 @@ export function AgentCard({ agent }: { agent: Agent }) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="space-y-1 rounded-md border border-slate-800 bg-slate-900/50 py-2">
-      <dt className="text-xs uppercase tracking-wider text-slate-500">{label}</dt>
-      <dd className="font-mono text-lg text-slate-100">{value}</dd>
+    <div className="space-y-1 rounded-md border border-ash-white bg-ash-white py-2">
+      <dt className="text-xs uppercase tracking-wider text-abyssal-ink/40">{label}</dt>
+      <dd className="font-mono text-lg text-abyssal-ink">{value}</dd>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * ShutdownSequence — operator-locked teardown order (P2 §A / P3.9).
+ * ShutdownSequence — operator-locked teardown order.
  *
  * Distinct from the boot rollback stack:
  *   - Rollback: reverse-of-construction; runs ONLY on boot failure to clean

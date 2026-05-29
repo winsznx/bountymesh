@@ -16,6 +16,10 @@ type Error = enum {
   AlreadyWithdrawn,
   Unauthorized,
   ZeroHashRejected,
+  DeadlineNotReached,
+  NoDeadlineSet,
+  BountyAlreadyTerminal,
+  ReasonTooLong,
 };
 
 type TrackEnum = enum {
@@ -23,6 +27,17 @@ type TrackEnum = enum {
   Social,
   Economy,
   Open,
+};
+
+type BountyStatus = enum {
+  Open,
+  Claimed,
+  Submitted,
+  Accepted,
+  Rejected,
+  Cancelled,
+  TimedOut,
+  Revoked,
 };
 
 constructor {
@@ -45,6 +60,13 @@ service BountyService {
   /// 
   /// Accept is not payable. Any attached value is refunded defensively.
   Accept : (id: u64) -> result (null, Error);
+  /// Cancel an Open bounty. Poster-only. Refunds the full escrow + any attached value.
+  /// 
+  /// Status: Open → Cancelled (terminal).
+  /// Caller MUST be the original poster.
+  /// Refund: caller == value-target (poster), so `CommandReply::with_value(reward + value)`
+  /// rides on the reply atomically.
+  Cancel : (id: u64) -> result (null, Error);
   /// Claim an Open bounty. First wallet wins; second caller gets Err(BountyNotOpen).
   /// 
   /// Claim is not payable. Any attached value is refunded defensively via
@@ -57,6 +79,22 @@ service BountyService {
   /// `agent-paid-service.md` "Critical correctness note": `msg::send_bytes` does
   /// NOT fire on Err returns in sails-rs 0.10 — only the reply carries value atomically.
   Post : (title: str, description: str, acceptance: str, reward: u128, deadline: opt u32, track: TrackEnum) -> result (u64, Error);
+  /// Reject a Submitted bounty. Poster-only. Refunds the full escrow + any attached value.
+  /// 
+  /// Status: Submitted → Rejected (terminal).
+  /// Caller MUST be the original poster.
+  /// The optional `reason` (≤ 500 chars) is persisted on-chain for indexer visibility.
+  /// Refund: same primitive as Cancel — caller == value-target (poster).
+  Reject : (id: u64, reason: opt str) -> result (null, Error);
+  /// Owner emergency: forcibly Revoke a bounty in any state.
+  /// 
+  /// Caller MUST be `state.owner` (set immutably at construction).
+  /// If bounty has not been withdrawn, escrow is pushed to the original poster.
+  /// If bounty has already been withdrawn (Accepted + withdrawn=true), no
+  /// escrow movement — status flip only.
+  /// Refund: caller (owner) ≠ value-target (poster). Same primitive as Timeout:
+  /// `msg::send_bytes` to poster + `with_value(value)` reply refund.
+  Revoke : (id: u64) -> result (null, Error);
   /// Submit the worker's result payload + hash. Status flips Claimed → Submitted.
   /// 
   /// Auth: caller must equal bounty.worker.
@@ -66,6 +104,16 @@ service BountyService {
   /// 
   /// Submit is not payable. Any attached value is refunded defensively.
   Submit : (id: u64, result_payload: str, result_hash: h256) -> result (null, Error);
+  /// Permissionless watchdog: force a stuck bounty into TimedOut after deadline.
+  /// 
+  /// Status: Open | Claimed | Submitted → TimedOut (terminal).
+  /// Caller is anyone — this is the canonical permissionless watchdog pattern.
+  /// Deadline MUST be set AND `exec::block_height() > deadline`.
+  /// Refund: caller ≠ value-target (poster). Per the primitive rule, escrow is
+  /// pushed to poster's mailbox via `msg::send_bytes(poster, [], reward)`;
+  /// caller's attached value rides back on the reply via `with_value(value)`.
+  /// This is the FIRST `msg::send_bytes` invocation in the contract surface.
+  Timeout : (id: u64) -> result (null, Error);
   /// Worker pulls the escrowed reward. Two-phase settlement closure.
   /// 
   /// Withdraw is the only method that:
@@ -121,6 +169,32 @@ service BountyService {
       worker: actor_id,
       amount: u128,
       withdrawn_at: u32,
+    };
+    BountyCancelled: struct {
+      id: u64,
+      by: actor_id,
+      refunded: u128,
+      cancelled_at: u32,
+    };
+    BountyRejected: struct {
+      id: u64,
+      by: actor_id,
+      worker: actor_id,
+      reason: opt str,
+      rejected_at: u32,
+    };
+    BountyTimedOut: struct {
+      id: u64,
+      last_state: BountyStatus,
+      called_by: actor_id,
+      refunded_to: actor_id,
+      timed_out_at: u32,
+    };
+    BountyRevoked: struct {
+      id: u64,
+      by: actor_id,
+      refunded_to: actor_id,
+      revoked_at: u32,
     };
   }
 };

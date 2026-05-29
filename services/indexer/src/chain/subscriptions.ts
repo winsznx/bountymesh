@@ -43,7 +43,7 @@
  *   generated from a fixed URI ('//bountymesh-indexer-no-sign') that is
  *   never used to sign anything. Surfaced as Step 5b judgment call #2.
  *   Long-term resolution: a SDK refactor to make signer optional when only
- *   event subscribers are consumed (Phase 7 polish).
+ *   event subscribers are consumed.
  */
 
 import { BountyMeshClient } from '@bountymesh/sdk';

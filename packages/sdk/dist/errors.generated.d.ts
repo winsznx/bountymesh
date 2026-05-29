@@ -1,4 +1,4 @@
-export type BountyMeshError = 'SelfLoop' | 'MarketPaused' | 'RewardBelowMinimum' | 'InsufficientPayment' | 'TitleTooLong' | 'DescriptionTooLong' | 'AcceptanceTooLong' | 'PayloadTooLong' | 'IdSpaceExhausted' | 'BountyNotFound' | 'BountyNotOpen' | 'BountyNotClaimed' | 'BountyNotSubmitted' | 'BountyNotAccepted' | 'AlreadyWithdrawn' | 'Unauthorized' | 'ZeroHashRejected';
+export type BountyMeshError = 'SelfLoop' | 'MarketPaused' | 'RewardBelowMinimum' | 'InsufficientPayment' | 'TitleTooLong' | 'DescriptionTooLong' | 'AcceptanceTooLong' | 'PayloadTooLong' | 'IdSpaceExhausted' | 'BountyNotFound' | 'BountyNotOpen' | 'BountyNotClaimed' | 'BountyNotSubmitted' | 'BountyNotAccepted' | 'AlreadyWithdrawn' | 'Unauthorized' | 'ZeroHashRejected' | 'DeadlineNotReached' | 'NoDeadlineSet' | 'BountyAlreadyTerminal' | 'ReasonTooLong';
 export type Track = 'Services' | 'Social' | 'Economy' | 'Open';
 export declare const ALL_BOUNTYMESH_ERRORS: readonly BountyMeshError[];
 export declare const ALL_TRACKS: readonly Track[];

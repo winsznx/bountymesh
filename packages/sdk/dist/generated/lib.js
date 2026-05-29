@@ -20,8 +20,9 @@ export class SailsProgram {
     constructor(api, programId) {
         this.api = api;
         const types = {
-            Error: { "_enum": ["SelfLoop", "MarketPaused", "RewardBelowMinimum", "InsufficientPayment", "TitleTooLong", "DescriptionTooLong", "AcceptanceTooLong", "PayloadTooLong", "IdSpaceExhausted", "BountyNotFound", "BountyNotOpen", "BountyNotClaimed", "BountyNotSubmitted", "BountyNotAccepted", "AlreadyWithdrawn", "Unauthorized", "ZeroHashRejected"] },
+            Error: { "_enum": ["SelfLoop", "MarketPaused", "RewardBelowMinimum", "InsufficientPayment", "TitleTooLong", "DescriptionTooLong", "AcceptanceTooLong", "PayloadTooLong", "IdSpaceExhausted", "BountyNotFound", "BountyNotOpen", "BountyNotClaimed", "BountyNotSubmitted", "BountyNotAccepted", "AlreadyWithdrawn", "Unauthorized", "ZeroHashRejected", "DeadlineNotReached", "NoDeadlineSet", "BountyAlreadyTerminal", "ReasonTooLong"] },
             TrackEnum: { "_enum": ["Services", "Social", "Economy", "Open"] },
+            BountyStatus: { "_enum": ["Open", "Claimed", "Submitted", "Accepted", "Rejected", "Cancelled", "TimedOut", "Revoked"] },
         };
         this.registry = new TypeRegistry();
         this.registry.setKnownTypes({ types });
@@ -85,6 +86,19 @@ export class BountyService {
         return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Accept', id, 'u64', 'Result<Null, Error>', this._program.programId);
     }
     /**
+     * Cancel an Open bounty. Poster-only. Refunds the full escrow + any attached value.
+     *
+     * Status: Open → Cancelled (terminal).
+     * Caller MUST be the original poster.
+     * Refund: caller == value-target (poster), so `CommandReply::with_value(reward + value)`
+     * rides on the reply atomically.
+    */
+    cancel(id) {
+        if (!this._program.programId)
+            throw new Error('Program ID is not set');
+        return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Cancel', id, 'u64', 'Result<Null, Error>', this._program.programId);
+    }
+    /**
      * Claim an Open bounty. First wallet wins; second caller gets Err(BountyNotOpen).
      *
      * Claim is not payable. Any attached value is refunded defensively via
@@ -109,6 +123,34 @@ export class BountyService {
         return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Post', [title, description, acceptance, reward, deadline, track], '(String, String, String, u128, Option<u32>, TrackEnum)', 'Result<u64, Error>', this._program.programId);
     }
     /**
+     * Reject a Submitted bounty. Poster-only. Refunds the full escrow + any attached value.
+     *
+     * Status: Submitted → Rejected (terminal).
+     * Caller MUST be the original poster.
+     * The optional `reason` (≤ 500 chars) is persisted on-chain for indexer visibility.
+     * Refund: same primitive as Cancel — caller == value-target (poster).
+    */
+    reject(id, reason) {
+        if (!this._program.programId)
+            throw new Error('Program ID is not set');
+        return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Reject', [id, reason], '(u64, Option<String>)', 'Result<Null, Error>', this._program.programId);
+    }
+    /**
+     * Owner emergency: forcibly Revoke a bounty in any state.
+     *
+     * Caller MUST be `state.owner` (set immutably at construction).
+     * If bounty has not been withdrawn, escrow is pushed to the original poster.
+     * If bounty has already been withdrawn (Accepted + withdrawn=true), no
+     * escrow movement — status flip only.
+     * Refund: caller (owner) ≠ value-target (poster). Same primitive as Timeout:
+     * `msg::send_bytes` to poster + `with_value(value)` reply refund.
+    */
+    revoke(id) {
+        if (!this._program.programId)
+            throw new Error('Program ID is not set');
+        return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Revoke', id, 'u64', 'Result<Null, Error>', this._program.programId);
+    }
+    /**
      * Submit the worker's result payload + hash. Status flips Claimed → Submitted.
      *
      * Auth: caller must equal bounty.worker.
@@ -122,6 +164,22 @@ export class BountyService {
         if (!this._program.programId)
             throw new Error('Program ID is not set');
         return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Submit', [id, result_payload, result_hash], '(u64, String, H256)', 'Result<Null, Error>', this._program.programId);
+    }
+    /**
+     * Permissionless watchdog: force a stuck bounty into TimedOut after deadline.
+     *
+     * Status: Open | Claimed | Submitted → TimedOut (terminal).
+     * Caller is anyone — this is the canonical permissionless watchdog pattern.
+     * Deadline MUST be set AND `exec::block_height() > deadline`.
+     * Refund: caller ≠ value-target (poster). Per the primitive rule, escrow is
+     * pushed to poster's mailbox via `msg::send_bytes(poster, [], reward)`;
+     * caller's attached value rides back on the reply via `with_value(value)`.
+     * This is the FIRST `msg::send_bytes` invocation in the contract surface.
+    */
+    timeout(id) {
+        if (!this._program.programId)
+            throw new Error('Program ID is not set');
+        return new TransactionBuilder(this._program.api, this._program.registry, 'send_message', 'BountyService', 'Timeout', id, 'u64', 'Result<Null, Error>', this._program.programId);
     }
     /**
      * Worker pulls the escrowed reward. Two-phase settlement closure.
@@ -205,6 +263,54 @@ export class BountyService {
             const payload = message.payload.toHex();
             if (getServiceNamePrefix(payload) === 'BountyService' && getFnNamePrefix(payload) === 'BountyWithdrawn') {
                 callback(this._program.registry.createType('(String, String, {"id":"u64","worker":"[u8;32]","amount":"u128","withdrawn_at":"u32"})', message.payload)[2].toJSON());
+            }
+        });
+    }
+    subscribeToBountyCancelledEvent(callback) {
+        return this._program.api.gearEvents.subscribeToGearEvent('UserMessageSent', ({ data: { message } }) => {
+            ;
+            if (!message.source.eq(this._program.programId) || !message.destination.eq(ZERO_ADDRESS)) {
+                return;
+            }
+            const payload = message.payload.toHex();
+            if (getServiceNamePrefix(payload) === 'BountyService' && getFnNamePrefix(payload) === 'BountyCancelled') {
+                callback(this._program.registry.createType('(String, String, {"id":"u64","by":"[u8;32]","refunded":"u128","cancelled_at":"u32"})', message.payload)[2].toJSON());
+            }
+        });
+    }
+    subscribeToBountyRejectedEvent(callback) {
+        return this._program.api.gearEvents.subscribeToGearEvent('UserMessageSent', ({ data: { message } }) => {
+            ;
+            if (!message.source.eq(this._program.programId) || !message.destination.eq(ZERO_ADDRESS)) {
+                return;
+            }
+            const payload = message.payload.toHex();
+            if (getServiceNamePrefix(payload) === 'BountyService' && getFnNamePrefix(payload) === 'BountyRejected') {
+                callback(this._program.registry.createType('(String, String, {"id":"u64","by":"[u8;32]","worker":"[u8;32]","reason":"Option<String>","rejected_at":"u32"})', message.payload)[2].toJSON());
+            }
+        });
+    }
+    subscribeToBountyTimedOutEvent(callback) {
+        return this._program.api.gearEvents.subscribeToGearEvent('UserMessageSent', ({ data: { message } }) => {
+            ;
+            if (!message.source.eq(this._program.programId) || !message.destination.eq(ZERO_ADDRESS)) {
+                return;
+            }
+            const payload = message.payload.toHex();
+            if (getServiceNamePrefix(payload) === 'BountyService' && getFnNamePrefix(payload) === 'BountyTimedOut') {
+                callback(this._program.registry.createType('(String, String, {"id":"u64","last_state":"BountyStatus","called_by":"[u8;32]","refunded_to":"[u8;32]","timed_out_at":"u32"})', message.payload)[2].toJSON());
+            }
+        });
+    }
+    subscribeToBountyRevokedEvent(callback) {
+        return this._program.api.gearEvents.subscribeToGearEvent('UserMessageSent', ({ data: { message } }) => {
+            ;
+            if (!message.source.eq(this._program.programId) || !message.destination.eq(ZERO_ADDRESS)) {
+                return;
+            }
+            const payload = message.payload.toHex();
+            if (getServiceNamePrefix(payload) === 'BountyService' && getFnNamePrefix(payload) === 'BountyRevoked') {
+                callback(this._program.registry.createType('(String, String, {"id":"u64","by":"[u8;32]","refunded_to":"[u8;32]","revoked_at":"u32"})', message.payload)[2].toJSON());
             }
         });
     }

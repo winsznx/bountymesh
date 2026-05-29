@@ -4,13 +4,21 @@ import { SubscriptionManager } from './events.js';
 import type {
   BountyAcceptedEvent,
   BountyAcceptedFilter,
+  BountyCancelledEvent,
+  BountyCancelledFilter,
   BountyClaimedEvent,
   BountyClaimedFilter,
   BountyMeshClientOptions,
   BountyPostedEvent,
   BountyPostedFilter,
+  BountyRejectedEvent,
+  BountyRejectedFilter,
+  BountyRevokedEvent,
+  BountyRevokedFilter,
   BountySubmittedEvent,
   BountySubmittedFilter,
+  BountyTimedOutEvent,
+  BountyTimedOutFilter,
   BountyWithdrawnEvent,
   BountyWithdrawnFilter,
   InjectedSignerWithAddress,
@@ -298,5 +306,145 @@ export class BountyMeshClient {
     cb: (e: BountyWithdrawnEvent) => void | Promise<void>,
   ): Promise<Unsubscribe> {
     return this.events.on('BountyWithdrawn', filter, cb);
+  }
+
+  // ============================================================
+  // v1.1 — v2 transition methods (Cancel / Reject / Timeout / Revoke)
+  // ============================================================
+
+  /**
+   * Cancel an Open bounty. Poster-only. Refunds the full escrow + any
+   * attached value via CommandReply::with_value(reward + value) on the reply.
+   * Status flip: Open → Cancelled (terminal).
+   */
+  async cancel(id: bigint): Promise<TxResult<null>> {
+    const tx = this.program.bountyService.cancel(id);
+
+    if (isInjectedSigner(this.signer)) {
+      tx.withAccount(this.signer.address, { signer: this.signer.signer as PolkadotSigner });
+    } else {
+      tx.withAccount(this.signer);
+    }
+    await tx.calculateGas();
+
+    const sent = await tx.signAndSend();
+    const reply = await sent.response();
+    const { txHash, blockHash } = sent;
+
+    if ('ok' in reply) {
+      return { ok: true, value: null, txHash, blockHash };
+    }
+    return { ok: false, error: adaptErr(reply.err), txHash, blockHash };
+  }
+
+  /**
+   * Reject a Submitted bounty. Poster-only. Optional ≤500-char reason is
+   * persisted on-chain for indexer visibility. Refunds the full escrow.
+   * Status flip: Submitted → Rejected (terminal).
+   */
+  async reject(id: bigint, reason: string | null = null): Promise<TxResult<null>> {
+    const tx = this.program.bountyService.reject(id, reason);
+
+    if (isInjectedSigner(this.signer)) {
+      tx.withAccount(this.signer.address, { signer: this.signer.signer as PolkadotSigner });
+    } else {
+      tx.withAccount(this.signer);
+    }
+    await tx.calculateGas();
+
+    const sent = await tx.signAndSend();
+    const reply = await sent.response();
+    const { txHash, blockHash } = sent;
+
+    if ('ok' in reply) {
+      return { ok: true, value: null, txHash, blockHash };
+    }
+    return { ok: false, error: adaptErr(reply.err), txHash, blockHash };
+  }
+
+  /**
+   * Permissionless watchdog: force a stuck bounty into TimedOut after the
+   * configured deadline block. Requires `bounty.deadline` set AND
+   * `current_block > deadline`. Pushes escrow to poster's mailbox via
+   * `msg::send_bytes(poster, [], reward)` — caller's defensive value rides
+   * back on the reply via `with_value(value)`.
+   * Status flip: {Open|Claimed|Submitted} → TimedOut (terminal).
+   */
+  async timeout(id: bigint): Promise<TxResult<null>> {
+    const tx = this.program.bountyService.timeout(id);
+
+    if (isInjectedSigner(this.signer)) {
+      tx.withAccount(this.signer.address, { signer: this.signer.signer as PolkadotSigner });
+    } else {
+      tx.withAccount(this.signer);
+    }
+    await tx.calculateGas();
+
+    const sent = await tx.signAndSend();
+    const reply = await sent.response();
+    const { txHash, blockHash } = sent;
+
+    if ('ok' in reply) {
+      return { ok: true, value: null, txHash, blockHash };
+    }
+    return { ok: false, error: adaptErr(reply.err), txHash, blockHash };
+  }
+
+  /**
+   * Owner emergency: forcibly Revoke a bounty in any non-Revoked state.
+   * Caller MUST be `state.owner` (set immutably at construction). Non-
+   * withdrawn escrow is pushed to the original poster via `msg::send_bytes`.
+   * Status flip: {any non-Revoked} → Revoked (terminal).
+   */
+  async revoke(id: bigint): Promise<TxResult<null>> {
+    const tx = this.program.bountyService.revoke(id);
+
+    if (isInjectedSigner(this.signer)) {
+      tx.withAccount(this.signer.address, { signer: this.signer.signer as PolkadotSigner });
+    } else {
+      tx.withAccount(this.signer);
+    }
+    await tx.calculateGas();
+
+    const sent = await tx.signAndSend();
+    const reply = await sent.response();
+    const { txHash, blockHash } = sent;
+
+    if ('ok' in reply) {
+      return { ok: true, value: null, txHash, blockHash };
+    }
+    return { ok: false, error: adaptErr(reply.err), txHash, blockHash };
+  }
+
+  // ============================================================
+  // v1.1 — v2 event subscriptions
+  // ============================================================
+
+  async onBountyCancelled(
+    filter: BountyCancelledFilter | null,
+    cb: (e: BountyCancelledEvent) => void | Promise<void>,
+  ): Promise<Unsubscribe> {
+    return this.events.on('BountyCancelled', filter, cb);
+  }
+
+  async onBountyRejected(
+    filter: BountyRejectedFilter | null,
+    cb: (e: BountyRejectedEvent) => void | Promise<void>,
+  ): Promise<Unsubscribe> {
+    return this.events.on('BountyRejected', filter, cb);
+  }
+
+  async onBountyTimedOut(
+    filter: BountyTimedOutFilter | null,
+    cb: (e: BountyTimedOutEvent) => void | Promise<void>,
+  ): Promise<Unsubscribe> {
+    return this.events.on('BountyTimedOut', filter, cb);
+  }
+
+  async onBountyRevoked(
+    filter: BountyRevokedFilter | null,
+    cb: (e: BountyRevokedEvent) => void | Promise<void>,
+  ): Promise<Unsubscribe> {
+    return this.events.on('BountyRevoked', filter, cb);
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Boot orchestrator types.
  *
- * 7-stage sequence (P2 §1 + P3.9 operator-locked):
+ * 7-stage operator-locked sequence:
  *   B-1: loadConfig          — env validation + WorkerConfig assembly
  *   B-2: loadSigner          — keystore-or-env Sr25519 keypair
  *   B-3: connectChain        — GearApi + BountyMeshClient

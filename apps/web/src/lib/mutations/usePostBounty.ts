@@ -36,10 +36,10 @@ export function usePostBounty() {
       if (!PROGRAM_ID) throw new Error("NEXT_PUBLIC_BOUNTYMESH_PROGRAM_ID not set");
       if (!WS_URL) throw new Error("NEXT_PUBLIC_VARA_WS not set");
 
-      // Lazy-import per P3.1 discipline: keep browser-only chain + SDK
-      // modules out of any module-top-level path that RSC / SSR might
-      // touch. All loaded inside the mutationFn — only runs in the
-      // browser, only when the user clicks Post.
+      // Lazy-import discipline: keep browser-only chain + SDK modules out of
+      // any module-top-level path that RSC / SSR might touch. All loaded
+      // inside the mutationFn — only runs in the browser, only when the user
+      // clicks Post.
       const { GearApi } = await import("@gear-js/api");
       const { BountyMeshClient } = await import("@bountymesh/sdk");
 
