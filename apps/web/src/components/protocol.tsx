@@ -106,8 +106,9 @@ export function StateNode({
           target="_blank"
           rel="noreferrer"
           className="px-2 font-mono text-[10px] text-abyssal-ink/40 transition-colors hover:text-digital-orange"
+          title={txHash}
         >
-          tx {txHash}
+          tx {txHash.length > 14 ? `${txHash.slice(0, 6)}…${txHash.slice(-4)}` : txHash}
         </a>
       )}
     </div>
@@ -146,29 +147,35 @@ export function RailSegment({
  * Hero workflow diagram. Renders the 5 lifecycle states with sample data so
  * the visual itself communicates the entire protocol at a glance.
  */
+/** Real Bounty #0 on Vara mainnet — posted, awaiting claim. */
+const REAL_BOUNTY = {
+  id: "0",
+  postTxHash:
+    "0x71cbf271e7be7616bfb308d2a09059135db107c2db93005bdc6da532f512e18b",
+  reward: "0.5 VARA",
+};
+
 export function ProtocolDiagram() {
   const states: Array<StateNodeProps & { id: WorkflowState }> = [
     {
       id: "Posted",
       state: "Posted",
-      stage: "past",
+      stage: "current",
       caption: "poster locks reward",
-      badge: "0.5 VARA",
-      txHash: "0x71cb…e18b",
+      badge: REAL_BOUNTY.reward,
+      txHash: REAL_BOUNTY.postTxHash,
     },
     {
       id: "Claimed",
       state: "Claimed",
-      stage: "past",
-      caption: "worker wins the lock",
-      txHash: "0xb14f…3702",
+      stage: "future",
+      caption: "agent wins the lock",
     },
     {
       id: "Submitted",
       state: "Submitted",
-      stage: "current",
+      stage: "future",
       caption: "envelope hash on chain",
-      txHash: "0x88e1…00ad",
     },
     {
       id: "Accepted",
@@ -180,20 +187,24 @@ export function ProtocolDiagram() {
       id: "Settled",
       state: "Settled",
       stage: "future",
-      caption: "worker pulls reward",
-      badge: "+0.5 VARA",
+      caption: "agent pulls reward",
+      badge: `+${REAL_BOUNTY.reward}`,
     },
   ];
 
   return (
     <div className="rounded-[36px] bg-ash-white p-6 md:p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-wider text-abyssal-ink/60">
-          Bounty lifecycle
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-abyssal-ink/60">
+          <span className="inline-flex h-2 w-2 rounded-full bg-cyber-violet" aria-hidden />
+          Bounty lifecycle · live
         </div>
-        <div className="rounded-input bg-pure-white px-3 py-1 font-mono text-[10px] text-abyssal-ink/60">
-          bounty #1
-        </div>
+        <a
+          href={`/bounties/${REAL_BOUNTY.id}`}
+          className="inline-flex items-center gap-1 rounded-input bg-pure-white px-3 py-1 font-mono text-[10px] text-abyssal-ink/60 transition-colors hover:text-digital-orange"
+        >
+          bounty #{REAL_BOUNTY.id} · open →
+        </a>
       </div>
 
       {/* Desktop horizontal rail */}
@@ -304,23 +315,45 @@ export function EscrowVault({
  * where multiple runners converge on a bounty marker.
  */
 function WorkerMarker({
-  address,
+  label,
   status,
 }: {
-  address: string;
+  label: string;
   status: "racing" | "won" | "lost";
 }) {
   const STATUS_STYLES: Record<typeof status, string> = {
     racing: "border-cyber-violet bg-pure-white text-abyssal-ink",
     won: "border-digital-orange bg-digital-orange text-pure-white",
-    lost: "border-abyssal-ink/20 bg-pure-white text-abyssal-ink/40 line-through",
+    lost: "border-abyssal-ink/20 bg-pure-white text-abyssal-ink/40",
   };
+  const STATUS_PILL: Record<typeof status, { label: string; cls: string }> = {
+    racing: {
+      label: "racing",
+      cls: "bg-cyber-violet text-pure-white",
+    },
+    won: {
+      label: "won",
+      cls: "bg-pure-white text-digital-orange",
+    },
+    lost: {
+      label: "refunded",
+      cls: "bg-abyssal-ink/10 text-abyssal-ink/60",
+    },
+  };
+  const pill = STATUS_PILL[status];
   return (
     <div
-      className={`flex h-10 items-center gap-2 rounded-input border-2 px-3 font-mono text-xs font-medium ${STATUS_STYLES[status]}`}
+      className={`flex h-10 items-center justify-between gap-2 rounded-input border-2 px-3 font-mono text-xs font-medium ${STATUS_STYLES[status]}`}
     >
-      <span aria-hidden className="block h-1.5 w-1.5 rounded-full bg-current" />
-      {address}
+      <div className="flex min-w-0 items-center gap-2">
+        <span aria-hidden className="block h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+        <span className={`truncate ${status === "lost" ? "line-through" : ""}`}>
+          {label}
+        </span>
+      </div>
+      <span className={`shrink-0 rounded-input px-2 py-0.5 text-[9px] uppercase tracking-wider ${pill.cls}`}>
+        {pill.label}
+      </span>
     </div>
   );
 }
@@ -328,9 +361,9 @@ function WorkerMarker({
 export function ClaimRace() {
   return (
     <div className="space-y-6 rounded-card bg-ash-white p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wider text-abyssal-ink/60">
-          Claim race · block #33,364,617
+          Claim race · illustration
         </div>
         <div className="rounded-input border border-abyssal-ink/20 bg-pure-white px-3 py-1 font-mono text-[10px] text-abyssal-ink/60">
           first-finalized wins
@@ -338,11 +371,11 @@ export function ClaimRace() {
       </div>
 
       <div className="space-y-3">
-        {/* Workers attempting Claim */}
+        {/* Workers attempting Claim — illustrative labels, not real addresses */}
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-          <WorkerMarker address="0xa2d2…0b1f" status="won" />
-          <WorkerMarker address="0x4c91…aa10" status="lost" />
-          <WorkerMarker address="0xfb22…cc04" status="lost" />
+          <WorkerMarker label="agent-α" status="won" />
+          <WorkerMarker label="agent-β" status="lost" />
+          <WorkerMarker label="agent-γ" status="lost" />
         </div>
 
         {/* Convergence arrow */}
@@ -367,11 +400,11 @@ export function ClaimRace() {
             <span className="font-medium uppercase tracking-wider opacity-80">
               Worker lock
             </span>
-            <span className="font-mono">0xa2d2…0b1f</span>
+            <span className="font-mono">agent-α</span>
           </div>
           <div className="mt-1 text-[10px] opacity-60">
             other claims rejected with{" "}
-            <span className="font-mono">BountyNotOpen</span>
+            <span className="font-mono">BountyNotOpen</span> and their value refunded
           </div>
         </div>
       </div>
