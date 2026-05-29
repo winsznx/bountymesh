@@ -76,34 +76,39 @@ export function StateNode({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div
-        className={`relative flex h-[132px] min-w-0 flex-col justify-between rounded-[28px] border-2 px-3 py-4 lg:h-[140px] lg:px-5 ${s.container}`}
+        className={`relative flex h-[132px] min-w-0 flex-col justify-between rounded-[28px] border-2 px-3 py-4 lg:h-[148px] lg:px-4 xl:px-5 ${s.container}`}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <span
             aria-hidden
-            className={`h-2 w-2 rounded-full ${s.dot}`}
+            className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`}
           />
           {badge && (
-            <span className="rounded-input bg-digital-orange px-2 py-0.5 text-[10px] font-mono font-medium text-pure-white">
+            <span className="truncate rounded-input bg-digital-orange px-2 py-0.5 text-[10px] font-mono font-medium text-pure-white">
               {badge}
             </span>
           )}
         </div>
         <div className="space-y-1">
-          <div className={`font-display text-[21px] leading-[0.94] tracking-heading-sm lg:text-[24px] ${s.label}`}>
+          <div className={`font-display text-[20px] leading-[0.94] tracking-heading-sm lg:text-[22px] xl:text-[24px] ${s.label}`}>
             {STATE_LABEL[state]}
           </div>
           {caption && (
-            <div className={`text-[11px] leading-snug lg:text-xs ${s.caption}`}>
+            <div className={`text-[11px] leading-snug lg:text-[11px] xl:text-xs ${s.caption}`}>
               {caption}
             </div>
           )}
         </div>
       </div>
       {txHash && (
-        <div className="px-2 font-mono text-[10px] text-abyssal-ink/40">
+        <a
+          href={`https://vara.subscan.io/extrinsic/${txHash}`}
+          target="_blank"
+          rel="noreferrer"
+          className="px-2 font-mono text-[10px] text-abyssal-ink/40 transition-colors hover:text-digital-orange"
+        >
           tx {txHash}
-        </div>
+        </a>
       )}
     </div>
   );
@@ -192,14 +197,14 @@ export function ProtocolDiagram() {
       </div>
 
       {/* Desktop horizontal rail */}
-      <div className="hidden grid-cols-5 gap-3 md:grid lg:gap-4">
+      <div className="hidden grid-cols-5 gap-4 lg:grid xl:gap-6">
         {states.map((s, i) => (
           <DiagramStep key={s.id} index={i} total={states.length} state={s} />
         ))}
       </div>
 
-      {/* Mobile vertical rail */}
-      <div className="flex flex-col gap-3 md:hidden">
+      {/* Mobile + tablet vertical rail */}
+      <div className="flex flex-col gap-3 lg:hidden">
         {states.map((s) => (
           <div key={s.id} className="flex flex-col gap-2">
             <StateNode {...s} />
@@ -226,7 +231,7 @@ function DiagramStep({
       <StateNode {...state} />
       {!isLast && (
         <div
-          className="absolute top-[58px] -right-5 z-10 hidden w-7 items-center lg:-right-6 lg:flex"
+          className="absolute top-[58px] -right-6 z-10 hidden w-7 items-center xl:flex"
           aria-hidden
         >
           <RailSegment active={railActive} />
@@ -589,27 +594,32 @@ export function EcosystemMap() {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
-      <div className="space-y-3">
-        {left.map((n) => (
-          <Card key={n.label} node={n} />
-        ))}
-      </div>
-      <div className="space-y-3 self-stretch">
-        <div className="hidden md:flex md:h-full md:items-center md:justify-center">
-          <ArrowRight className="h-5 w-5 text-abyssal-ink/40" aria-hidden />
-        </div>
+    <div className="space-y-4">
+      {/* CONTRACT card sits at top — the hub everyone interacts with */}
+      <div className="mx-auto max-w-md">
         {center.map((n) => (
           <Card key={n.label} node={n} />
         ))}
       </div>
-      <div className="space-y-3">
-        <div className="hidden md:flex md:items-center md:justify-start">
-          <ArrowRight className="h-5 w-5 text-abyssal-ink/40" aria-hidden />
+
+      {/* Two columns of participants below — equal-width, no overflow */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-3">
+          <div className="text-[10px] font-medium uppercase tracking-wider text-abyssal-ink/40">
+            Wallet signers
+          </div>
+          {left.map((n) => (
+            <Card key={n.label} node={n} />
+          ))}
         </div>
-        {right.map((n) => (
-          <Card key={n.label} node={n} />
-        ))}
+        <div className="space-y-3">
+          <div className="text-[10px] font-medium uppercase tracking-wider text-abyssal-ink/40">
+            Off-chain surface
+          </div>
+          {right.map((n) => (
+            <Card key={n.label} node={n} />
+          ))}
+        </div>
       </div>
     </div>
   );

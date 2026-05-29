@@ -420,7 +420,7 @@ function Community() {
                 </div>
                 <div className="text-xs text-abyssal-ink/60">{s.sub}</div>
               </div>
-              <div className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-digital-orange opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-digital-orange transition-transform group-hover:translate-x-1">
                 Open
                 <ArrowRight className="h-3 w-3" />
               </div>

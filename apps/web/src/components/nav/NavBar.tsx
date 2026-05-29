@@ -43,7 +43,7 @@ export function NavBar() {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-30 bg-basalt-canvas px-4 pt-4 md:px-8 md:pt-6">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 rounded-pill bg-ash-white px-3 py-2 shadow-sm md:gap-6 md:px-4">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 rounded-pill bg-ash-white px-3 py-2 shadow-sm lg:gap-4 lg:px-4">
         <Link
           href="/"
           aria-label="BountyMesh home"
@@ -53,19 +53,19 @@ export function NavBar() {
             aria-hidden
             className="block h-7 w-7 rounded-full bg-digital-orange"
           />
-          <span className="hidden font-display text-2xl tracking-heading-sm text-abyssal-ink md:inline">
+          <span className="hidden font-display text-2xl tracking-heading-sm text-abyssal-ink sm:inline">
             bountymesh
           </span>
         </Link>
 
-        <nav className="hidden flex-wrap items-center gap-x-1 md:flex">
+        <nav className="hidden items-center gap-x-1 lg:flex">
           {LINKS.map(({ href, label }) => {
             const active = isActive(pathname, href);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`rounded-pill px-4 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-pill px-3 py-1.5 text-sm font-medium transition-colors xl:px-4 ${
                   active
                     ? "text-digital-orange"
                     : "text-abyssal-ink/70 hover:text-abyssal-ink"
@@ -78,7 +78,7 @@ export function NavBar() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden items-center gap-1 border-l border-abyssal-ink/10 pl-3 md:flex">
+          <div className="hidden items-center gap-1 border-l border-abyssal-ink/10 pl-3 xl:flex">
             {SOCIAL.map(({ href, label, icon: Icon }) => (
               <a
                 key={href}
@@ -97,8 +97,8 @@ export function NavBar() {
         </div>
       </div>
 
-      {/* Mobile nav row */}
-      <nav className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center gap-x-1 gap-y-2 px-2 md:hidden">
+      {/* Mobile + tablet nav row (below lg) */}
+      <nav className="mx-auto mt-3 flex w-full max-w-7xl flex-wrap items-center gap-x-1 gap-y-2 px-2 lg:hidden">
         {LINKS.map(({ href, label }) => {
           const active = isActive(pathname, href);
           return (

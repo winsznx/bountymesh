@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Copy } from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { encodeHexToSs58, formatAddressTruncated } from "@/lib/format/address";
 
@@ -27,8 +27,11 @@ export function AddressChip({
 
   const display = formatAddressTruncated(address, chainSS58, ss58 ?? null);
   const copyValue = ss58 ?? address;
+  const subscanValue = ss58 ?? address;
 
-  const onCopy = () => {
+  const onCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     navigator.clipboard.writeText(copyValue).then(
       () => toast.success("Copied", { description: copyValue }),
       () => toast.error("Copy failed"),
@@ -53,6 +56,16 @@ export function AddressChip({
       ) : (
         <span>{display}</span>
       )}
+      <a
+        href={`https://vara.subscan.io/account/${subscanValue}`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        aria-label="View on Subscan"
+        className="inline-flex items-center text-abyssal-ink/40 transition-colors hover:text-digital-orange"
+      >
+        <ExternalLink className="h-3 w-3" aria-hidden />
+      </a>
     </span>
   );
 }

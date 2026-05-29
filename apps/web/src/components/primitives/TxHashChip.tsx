@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -14,8 +14,16 @@ function truncate(h: string): string {
   return `${h.slice(0, 6)}…${h.slice(-4)}`;
 }
 
-export function TxHashChip({ hash, explorerBaseUrl, label }: Props) {
-  const onCopy = () => {
+const DEFAULT_EXPLORER = "https://vara.subscan.io/extrinsic/";
+
+export function TxHashChip({
+  hash,
+  explorerBaseUrl = DEFAULT_EXPLORER,
+  label,
+}: Props) {
+  const onCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     navigator.clipboard.writeText(hash).then(
       () => toast.success("Copied", { description: hash }),
       () => toast.error("Copy failed"),
@@ -27,25 +35,22 @@ export function TxHashChip({ hash, explorerBaseUrl, label }: Props) {
       title={hash}
     >
       {label && <span className="text-abyssal-ink/60">{label}</span>}
+      <a
+        href={`${explorerBaseUrl}${hash}`}
+        target="_blank"
+        rel="noreferrer"
+        className="transition-colors hover:text-digital-orange"
+      >
+        {truncate(hash)}
+      </a>
       <button
         type="button"
         onClick={onCopy}
-        className="inline-flex items-center gap-1 transition-colors hover:text-digital-orange"
+        aria-label="Copy hash"
+        className="inline-flex items-center text-abyssal-ink/40 transition-colors hover:text-digital-orange"
       >
-        {truncate(hash)}
         <Copy className="h-3 w-3" aria-hidden />
       </button>
-      {explorerBaseUrl && (
-        <a
-          href={`${explorerBaseUrl}${hash}`}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center text-abyssal-ink/60 transition-colors hover:text-digital-orange"
-          aria-label="View on explorer"
-        >
-          <ExternalLink className="h-3 w-3" />
-        </a>
-      )}
     </span>
   );
 }
