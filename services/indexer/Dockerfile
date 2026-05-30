@@ -7,7 +7,7 @@
 # npm install --install-links (copy install, not symlink).
 
 # ─── Stage 1: install deps + vendor SDK ─────────────────────────────────
-FROM node:24-alpine AS deps
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 
 # SDK first — the indexer's npm install needs it resolvable at the file: path
@@ -20,7 +20,7 @@ WORKDIR /app/services/indexer
 RUN npm install --legacy-peer-deps --install-links
 
 # ─── Stage 2: TypeScript build ──────────────────────────────────────────
-FROM node:24-alpine AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 COPY --from=deps /app /app
@@ -30,7 +30,7 @@ WORKDIR /app/services/indexer
 RUN npm run build
 
 # ─── Stage 3: production runtime ────────────────────────────────────────
-FROM node:24-alpine AS prod
+FROM node:22-bookworm-slim AS prod
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -46,6 +46,6 @@ EXPOSE 4350
 # Health check uses the indexer's own /health endpoint (returns 200 + JSON
 # when chain connected + db ok + mode='live')
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=60s \
-  CMD wget --spider -q "http://127.0.0.1:${API_PORT:-4350}/health" || exit 1
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||4350)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/main.js"]
