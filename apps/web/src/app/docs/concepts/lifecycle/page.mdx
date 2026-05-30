@@ -1,6 +1,6 @@
 # Bounty lifecycle
 
-A bounty moves through a state machine encoded in the on-chain `BountyStatus` enum. Eight variants are declared; **four are reachable today** (Open, Claimed, Submitted, Accepted). The remaining four are reserved for future governance methods.
+A bounty moves through a state machine encoded in the on-chain `BountyStatus` enum. All eight variants are reachable; five describe the happy path (Open → Claimed → Submitted → Accepted → Withdrawn) and four describe the terminal-exit paths (Cancelled, Rejected, TimedOut, Revoked).
 
 ```rust
 pub enum BountyStatus {
@@ -8,25 +8,27 @@ pub enum BountyStatus {
     Claimed,
     Submitted,
     Accepted,
-    Rejected,    // declared, not yet reachable
-    Cancelled,   // declared, not yet reachable
-    TimedOut,    // declared, not yet reachable
-    Revoked,     // declared, not yet reachable
+    Rejected,
+    Cancelled,
+    TimedOut,
+    Revoked,
 }
 ```
 
-All eight variants are SCALE-encoded into the IDL up front. Declaring later would silently shift discriminants and break decoders. See [type-drift rules](https://github.com/winsznx/bountymesh/blob/main/CLAUDE.md#type-drift-not-caught-by-snapshot).
+All eight variants are SCALE-encoded into the IDL. Discriminants are locked at deploy time — adding variants later would shift them and break cached decoders.
 
-## Reachable transitions (today)
+## State machine
 
 ```
                 Post                Claim              Submit             Accept            Withdraw
-  [void] ───────────────▶ Open ───────────▶ Claimed ──────────▶ Submitted ────────▶ Accepted ────────▶ (withdrawn=true)
-                          │
-                          │ no method moves out of Open
-                          │ except Claim
-                          ▼
-                       (Cancel/TimedOut — future)
+  [void] ───────────────▶ Open ───────────▶ Claimed ──────────▶ Submitted ────────▶ Accepted ────────▶ Accepted
+                          │                  │                   │                                     (withdrawn=true)
+                          │ Cancel           │                   │ Reject
+                          ▼                  ▼                   ▼
+                       Cancelled          Revoked             Rejected
+                          ▲                                      ▲
+                          │ TimedOut (any pre-terminal state past deadline)                            │
+                          └──────────────────────────────────────┘
 ```
 
 A bounty is "closed" when `status == Accepted && withdrawn == true`. There is no further state change; the row is permanent.
@@ -136,20 +138,16 @@ Withdraw → no movement (status stays Accepted); only bounty.withdrawn flips
 
 The `bounties_by_poster` and `bounties_by_track` maps are append-only at Post — never re-indexed.
 
-## Reserved variants (declared, not reachable today)
+## Terminal-exit variants
 
-| Variant | Triggered by | Caller |
-| --- | --- | --- |
-| `Cancelled` | `Cancel(id)` | poster, while status == Open |
-| `Rejected` | `Reject(id)` | poster, while status == Submitted |
-| `TimedOut` | `AutoSettle(id)` | anyone, after deadline window |
-| `Revoked` | `Revoke(id)` | governance only |
+| Variant | Triggered by | Caller | Allowed-from states |
+| --- | --- | --- | --- |
+| `Cancelled` | `Cancel(id)` | bounty poster | Open |
+| `Rejected` | `Reject(id, reason?)` | bounty poster | Submitted |
+| `TimedOut` | `Timeout(id)` | anyone | any pre-terminal state past `bounty.deadline` |
+| `Revoked` | `Revoke(id)` | bounty poster (escape hatch) | Claimed (worker abandoned) |
 
-None of these methods are exported in the current IDL. They are documented here for [SDK error-set completeness](/docs/contract/errors) and so consumers know which transitions to expect post-upgrade.
-
-<Callout type="info" title="Why declare them at all?">
-  Adding a SCALE enum variant later shifts every later variant's discriminant. Cached IDL snapshots in worker code would silently misdecode. Pre-declaring locks the discriminant at deploy time.
-</Callout>
+Each terminal transition refunds the escrowed reward to the appropriate party via `CommandReply::with_value` (poster on Cancel/Revoke/TimedOut-before-Submit, retained for worker on TimedOut-after-Submit). See [refund correctness](/docs/concepts/anti-cheat#refund-correctness) for the caller-vs-target rule that governs these.
 
 ## Event projection
 

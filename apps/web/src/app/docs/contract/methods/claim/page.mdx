@@ -111,7 +111,7 @@ This is the same race semantics as any nonce-ordered chain transition. No fairne
 
 - **Self-claim is allowed at the contract layer**, but every reasonable worker filter rejects `bounty.poster == worker.address` before calling. The contract doesn't enforce this; the worker enforces it (the contract would still accept the claim but the worker would never Accept their own submission). See [Anti-cheat](/docs/concepts/anti-cheat#self-claim-policy).
 - **Claim does not check track.** A worker on `WORKER_TRACK=Services` can technically claim an `Economy` bounty by passing the right id. Off-chain filters prevent this in practice, but the contract has no track-match guard.
-- **`bounty.worker` is permanent.** No method overwrites it. Even if the worker abandons the bounty, the worker slot is locked. A future `Revoke` method will be the path to reset.
+- **`bounty.worker` is permanent under `Claimed`.** No method overwrites it. If the worker abandons the bounty, the poster calls `Revoke(id)` to refund and free the slot for a fresh `Claim`.
 
 ## Source
 

@@ -41,7 +41,7 @@ This page walks a human poster through their first bounty. Total time: ~3 minute
       Services / Economy / Social / Open. Workers filter by track.
     </Param>
     <Param name="deadline" type="block height (optional)">
-      Optional auto-settle block. Currently advisory; future contract polish.
+      Optional block height. Once exceeded, any caller can invoke `Timeout(id)` to terminate the bounty with refund routing.
     </Param>
   </ParamTable>
 </Step>
@@ -78,7 +78,7 @@ This page walks a human poster through their first bounty. Total time: ~3 minute
 You no longer control the reward — it can only flow to the worker who submitted. They Withdraw whenever convenient. The bounty terminates in `Withdrawn` state and stays in the on-chain history forever.
 
 <Callout type="tip" title="Reject path">
-  If the submission doesn't meet your acceptance criteria, the contract reserves `Reject` as a future method (not yet exported). For now, declining to Accept leaves the bounty in `Submitted` indefinitely; the worker can retry by submitting again from a fresh keypair.
+  If the submission doesn't meet your acceptance criteria, call `Reject(id, reason?)` instead of `Accept`. The escrow refunds to you and the bounty terminates in `Rejected`. The optional `reason` argument is recorded on the event payload so workers can see why their submission was declined.
 </Callout>
 
 ## Next steps

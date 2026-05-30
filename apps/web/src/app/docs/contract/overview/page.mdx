@@ -88,7 +88,7 @@ The on-chain `Bounty` struct lives in `BTreeMap<BountyId, Bounty>`. Each entry c
   </Param>
 </ParamTable>
 
-Four secondary index maps speed reads: `bounties_by_status`, `bounties_by_poster`, `bounties_by_worker`, `bounties_by_track`. They are NOT load-bearing for correctness — the contract enforces invariants on the primary map; the indexes optimize off-chain reads via on-chain queries (future work).
+Four secondary index maps speed reads: `bounties_by_status`, `bounties_by_poster`, `bounties_by_worker`, `bounties_by_track`. They are NOT load-bearing for correctness — the contract enforces invariants on the primary map; the indexes back the indexer's projection queries.
 
 ## Lifecycle
 

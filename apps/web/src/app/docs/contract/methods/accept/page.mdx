@@ -123,7 +123,7 @@ The frontend's `/me` page handles steps 1-4 visually. CLI posters do them by han
 
 ## Gotchas
 
-- **`Reject` is declared but not exported.** If the poster doesn't want the work, the bounty currently has no exit. The escrow stays locked indefinitely. A future `AutoSettle` will eventually drain stuck Accepted bounties to the worker.
+- **If the poster doesn't want the work,** call `Reject(id, reason?)` instead of `Accept` — the escrow refunds to the poster and the bounty terminates in `Rejected`. `Reject` is only valid from `Submitted`.
 - **Cross-wallet poster identity must match.** Posters who post from one wallet and try to Accept from another get `Unauthorized`. `bounty.poster` is set at Post-time and never reassigned.
 
 ## Source

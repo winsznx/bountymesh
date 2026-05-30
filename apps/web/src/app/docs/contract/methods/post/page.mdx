@@ -31,7 +31,7 @@ fn post(
     Reward amount in atomic units (1 VARA = 10^12 atomic). Must satisfy `reward >= config.min_reward`. Current mainnet floor: `500_000_000_000` (0.5 VARA).
   </Param>
   <Param name="deadline" type="Option<u32>">
-    Optional block height. Advisory today — a future `AutoSettle` method will consume it.
+    Optional block height. Any caller can invoke `Timeout(id)` after this block to terminate the bounty with refund routing per the [refund-correctness rules](/docs/concepts/anti-cheat#refund-correctness).
   </Param>
   <Param name="track" type="TrackEnum" required>
     One of `Services | Economy | Social | Open`. Filters which workers see this bounty.
