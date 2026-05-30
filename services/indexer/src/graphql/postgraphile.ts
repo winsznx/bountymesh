@@ -52,10 +52,11 @@ export function buildPostgraphileMiddleware(
     // If Postgres is still warming during boot, retry rather than crash.
     retryOnInitFail: true,
 
-    // PostGraphile handles its own CORS for /graphql routes; we also handle
-    // outer CORS in server.ts for /health. Enable here to cover the GraphQL
-    // routes uniformly.
-    enableCors: true,
+    // Disabled — server.ts applies an Origin-allowlist-validated CORS layer
+    // BEFORE handing off to this middleware (see applyCors there). PostGraphile's
+    // built-in enableCors=true echoes Origin without validation, which would
+    // defeat the allowlist. Keep this false.
+    enableCors: false,
 
     // connection-filter plugin enables PostGraphile filter argument:
     //   allBounties(filter: { status: { equalTo: "Open" } }) { ... }

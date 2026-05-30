@@ -1,11 +1,31 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { useChainHead } from "@/lib/queries/useChainHead";
 
 const WS_URL = process.env.NEXT_PUBLIC_VARA_WS ?? "";
 const INDEXER_URL = "/api/indexer";
 const VERSION = "v2";
+
+// ssr: false — render the chain head pill on the client only so the server
+// pass and the first client pass agree (both render the neutral fallback "—").
+// Without this, the live useChainHead() result on the client races the
+// server's null and React logs a hydration mismatch.
+const FooterChainPill = dynamic(
+  () => import("./FooterChainPill").then((m) => m.FooterChainPill),
+  {
+    ssr: false,
+    loading: () => (
+      <>
+        <span
+          className="h-1.5 w-1.5 rounded-full bg-abyssal-ink/20"
+          aria-hidden
+        />
+        —
+      </>
+    ),
+  },
+);
 
 function chainLabel(): string {
   if (WS_URL.includes("localhost") || WS_URL.includes("127.0.0.1")) {
@@ -18,9 +38,6 @@ function chainLabel(): string {
 }
 
 export function Footer() {
-  const head = useChainHead();
-  const healthy = head !== null;
-
   const onClickHealth = async (): Promise<void> => {
     try {
       const res = await fetch(`${INDEXER_URL}/health`);
@@ -52,13 +69,7 @@ export function Footer() {
             className="inline-flex items-center gap-1.5 rounded-input border border-abyssal-ink/20 bg-ash-white px-3 py-1 text-xs font-medium text-abyssal-ink transition-colors hover:bg-pure-white"
             aria-label="indexer health"
           >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                healthy ? "bg-cyber-violet" : "bg-digital-orange"
-              }`}
-              aria-hidden
-            />
-            {healthy ? `head #${head.head.toLocaleString()}` : "indexer down"}
+            <FooterChainPill />
           </button>
           <span className="text-xs font-medium text-abyssal-ink">{VERSION}</span>
         </div>

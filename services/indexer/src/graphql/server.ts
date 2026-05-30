@@ -39,8 +39,31 @@ export interface ServerHandle {
   close(): Promise<void>;
 }
 
-function applyCors(res: ServerResponse, origin: string): void {
-  res.setHeader('Access-Control-Allow-Origin', origin);
+/**
+ * CORS allowlist resolver.
+ *
+ * config.apiCorsOrigin is a comma-separated allowlist (or `*` to allow any).
+ * We echo back the request's Origin verbatim iff it appears in the allowlist,
+ * which is required for browser credentials-mode requests. Wildcards are
+ * supported only when the allowlist is the single string "*".
+ *
+ * Production indexer should set API_CORS_ORIGIN to
+ * "https://bountymesh.xyz,https://www.bountymesh.xyz" — never *.
+ */
+function resolveCorsOrigin(requestOrigin: string | undefined, allowlist: string): string | null {
+  if (allowlist === '*') return '*';
+  if (!requestOrigin) return null;
+  const allowed = allowlist.split(',').map((s) => s.trim()).filter(Boolean);
+  return allowed.includes(requestOrigin) ? requestOrigin : null;
+}
+
+function applyCors(req: IncomingMessage, res: ServerResponse, allowlist: string): void {
+  const requestOrigin = req.headers.origin;
+  const allowed = resolveCorsOrigin(requestOrigin, allowlist);
+  if (allowed) {
+    res.setHeader('Access-Control-Allow-Origin', allowed);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
@@ -52,7 +75,7 @@ function handleHealth(
   deps: ServerDeps,
 ): Promise<void> {
   return (async () => {
-    applyCors(res, deps.config.apiCorsOrigin);
+    applyCors(req, res, deps.config.apiCorsOrigin);
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       res.end();
@@ -95,10 +118,12 @@ export function startHttpServer(deps: ServerDeps): ServerHandle {
       return;
     }
 
+    // Apply CORS BEFORE handing off to PostGraphile so our allowlist takes
+    // precedence over its (permissive) built-in CORS on matched routes.
+    applyCors(req, res, config.apiCorsOrigin);
     // PostGraphile routing: middleware handles /graphql + /graphiql; calls
     // next() for anything else. We provide next as a 404 JSON.
     pgMiddleware(req as never, res as never, () => {
-      applyCors(res, config.apiCorsOrigin);
       if (req.method === 'OPTIONS') {
         res.statusCode = 204;
         res.end();

@@ -30,6 +30,7 @@ import { getFnNamePrefix, getServiceNamePrefix, ZERO_ADDRESS } from 'sails-js';
 import type { GearApi } from '@gear-js/api';
 import type { HexString } from '@gear-js/api/types';
 import type { TypeRegistry } from '@polkadot/types';
+import { rpcWithRetry } from './retry.js';
 // Deep import of the SDK's compiled SailsProgram (same pattern as
 // tests/harness/deployProgram.ts).
 import { SailsProgram } from '../../node_modules/@bountymesh/sdk/dist/generated/lib.js';
@@ -216,7 +217,10 @@ export async function decodeBlockEvents(
     let txHash: HexString = '0x' as HexString;
     let callPayloadHex: HexString | null = null;
     if (userSends === null) {
-      const signedBlock = (await api.rpc.chain.getBlock(blockHash)) as unknown as SignedBlockShape;
+      const signedBlock = (await rpcWithRetry(
+        () => api.rpc.chain.getBlock(blockHash),
+        `getBlock(${blockHash})`,
+      )) as unknown as SignedBlockShape;
       userSends = collectUserSends(signedBlock, programId);
     }
     if (bountyEventIdx < userSends.length) {

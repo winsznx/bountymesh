@@ -40,6 +40,7 @@ import type { Logger } from 'pino';
 import { indexerState } from '../schema.js';
 import { decodeBlockEvents } from './decode.js';
 import { ingestSingleBlock } from '../ingest/dispatch.js';
+import { rpcWithRetry } from './retry.js';
 
 export interface BackfillDeps {
   db: NodePgDatabase;
@@ -93,8 +94,10 @@ export async function backfill(
 
     await db.transaction(async (tx) => {
       for (let blockNumber = batchStart; blockNumber <= batchEnd; blockNumber += 1) {
-        const blockHashCodec = (await api.rpc.chain.getBlockHash(
-          blockNumber,
+        const blockHashCodec = (await rpcWithRetry(
+          () => api.rpc.chain.getBlockHash(blockNumber),
+          `getBlockHash(${blockNumber})`,
+          logger,
         )) as unknown as { toHex: () => HexString };
         const blockHash = blockHashCodec.toHex();
 
