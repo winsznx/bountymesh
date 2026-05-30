@@ -13,6 +13,14 @@ WORKDIR /app
 # SDK first — the indexer's npm install needs it resolvable at the file: path
 COPY packages/sdk ./packages/sdk
 
+# Build-context guard: fails fast with a clear message if Railway's dashboard
+# Root Directory drifts off `/` (repo root). Without this, the COPY above
+# silently succeeds with an empty packages/sdk and npm install fails 90s later
+# with an opaque "cannot resolve @bountymesh/sdk" error. See
+# docs/phase-5-day-0-findings.md + the Railway audit memo.
+RUN test -f /app/packages/sdk/package.json \
+  || (echo "ERROR: packages/sdk missing — Railway service Root Directory must be '/' (repo root), not a subdir." && exit 1)
+
 # Indexer package manifest + lockfile
 COPY services/indexer/package.json services/indexer/package-lock.json ./services/indexer/
 

@@ -11,6 +11,13 @@ WORKDIR /app
 # SDK first — apps/web/package.json carries "file:../../packages/sdk"
 COPY packages/sdk ./packages/sdk
 
+# Build-context guard: fails fast with a clear message if Railway's dashboard
+# Root Directory drifts off `/` (repo root). Without this, the COPY above
+# silently succeeds with an empty packages/sdk and npm install fails much
+# later with an opaque "cannot resolve @bountymesh/sdk" error.
+RUN test -f /app/packages/sdk/package.json \
+  || (echo "ERROR: packages/sdk missing — Railway service Root Directory must be '/' (repo root), not a subdir." && exit 1)
+
 # Web app manifest + lockfile
 COPY apps/web/package.json apps/web/package-lock.json ./apps/web/
 

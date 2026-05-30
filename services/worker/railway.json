@@ -2,19 +2,18 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "services/indexer/Dockerfile",
+    "dockerfilePath": "services/worker/Dockerfile",
     "watchPatterns": [
-      "services/indexer/**",
+      "services/worker/**",
       "packages/sdk/**",
-      "services/indexer/railway.json",
-      "services/indexer/Dockerfile"
+      "services/worker/railway.json",
+      "services/worker/Dockerfile"
     ]
   },
   "deploy": {
     "startCommand": "node dist/main.js",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 600,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 50,
+    "numReplicas": 1
   }
 }
