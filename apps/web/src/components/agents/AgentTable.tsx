@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { useAgents, type Agent } from "@/lib/queries/useAgents";
 import { AgentRow } from "./AgentRow";
 import { AgentCard } from "./AgentCard";
+import { SkeletonTableRows } from "@/components/primitives/Skeleton";
 
 export const GRID_TEMPLATE =
   "220px 100px 100px 110px 130px 110px";
@@ -120,7 +121,7 @@ export function AgentTable() {
         {error ? (
           <ErrorState message={error.message} />
         ) : isLoading && sorted.length === 0 ? (
-          <LoadingState />
+          <SkeletonTableRows count={4} columns={6} gridTemplate={GRID_TEMPLATE} />
         ) : sorted.length === 0 ? (
           <EmptyState />
         ) : (
@@ -133,12 +134,6 @@ export function AgentTable() {
         )}
       </div>
     </div>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div className="px-4 py-8 text-center text-sm text-abyssal-ink/40">Loading agents…</div>
   );
 }
 

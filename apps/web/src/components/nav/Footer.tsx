@@ -4,8 +4,7 @@ import { toast } from "sonner";
 import { useChainHead } from "@/lib/queries/useChainHead";
 
 const WS_URL = process.env.NEXT_PUBLIC_VARA_WS ?? "";
-const INDEXER_URL =
-  process.env.NEXT_PUBLIC_INDEXER_URL ?? "http://localhost:4350";
+const INDEXER_URL = "/api/indexer";
 const VERSION = "v2";
 
 function chainLabel(): string {

@@ -82,24 +82,44 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connect = useCallback(async () => {
     setError(null);
     setStatus("connecting");
+
+    // web3Enable can hang indefinitely when the extension's authorization
+    // popup is dismissed/hidden or the extension is unresponsive. Without a
+    // timeout the button stays "Connecting…" forever. Race every async step
+    // against a deadline so we always resolve to a connected or error state.
+    const TIMEOUT_MS = 20_000;
+    const withTimeout = <T,>(p: Promise<T>, label: string): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`${label} timed out — is your wallet extension unlocked? Look for an approval popup.`)),
+            TIMEOUT_MS,
+          ),
+        ),
+      ]);
+
     try {
       const { web3Enable, web3Accounts, web3FromAddress } = await import(
         "@polkadot/extension-dapp"
       );
-      const exts = await web3Enable("BountyMesh");
+      const exts = await withTimeout(web3Enable("BountyMesh"), "Wallet authorization");
       if (exts.length === 0) {
         setStatus("error");
-        setError("No Polkadot-compatible extension found. Install polkadot{.js}, Talisman, or SubWallet.");
+        setError("No Polkadot-compatible extension found. Install polkadot{.js}, Talisman, or SubWallet, then reload.");
         return;
       }
-      const accounts = await web3Accounts();
+      const accounts = await withTimeout(web3Accounts(), "Reading accounts");
       if (accounts.length === 0) {
         setStatus("error");
-        setError("Extension reports zero accounts. Authorize this origin in the extension popup.");
+        setError("Extension reports zero accounts. Unlock it and authorize this site in the extension popup.");
         return;
       }
       const selected = accounts[0];
-      const injector = await web3FromAddress(selected.address);
+      const injector = await withTimeout(
+        web3FromAddress(selected.address),
+        "Loading signer",
+      );
       setExtensionName(exts[0].name);
       setAccount({ address: selected.address, name: selected.meta.name });
       setSigner(injector.signer);

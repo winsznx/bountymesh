@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL ?? "http://localhost:4350";
+const INDEXER_URL = "/api/indexer";
 
 export interface ChainHead {
   head: number;

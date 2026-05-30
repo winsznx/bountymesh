@@ -7,6 +7,7 @@ import { useWallet } from "@/lib/wallet/useWallet";
 import { BountyRow } from "@/components/bounty/BountyRow";
 import { BountyCard } from "@/components/bounty/BountyCard";
 import { GRID_TEMPLATE } from "@/components/bounty/BountyTable";
+import { SkeletonTableRows } from "@/components/primitives/Skeleton";
 
 const TABS: { role: MyBountiesRole; label: string }[] = [
   { role: "poster", label: "Posted" },
@@ -83,7 +84,7 @@ export function MyBountiesTabs() {
         </div>
 
         {data.isLoading ? (
-          <LoadingRow />
+          <SkeletonTableRows count={5} columns={7} gridTemplate={GRID_TEMPLATE} />
         ) : data.error ? (
           <ErrorRow message={data.error.message} />
         ) : data.bounties.length === 0 ? (
@@ -98,12 +99,6 @@ export function MyBountiesTabs() {
         )}
       </div>
     </div>
-  );
-}
-
-function LoadingRow() {
-  return (
-    <div className="px-4 py-8 text-center text-sm text-abyssal-ink/40">Loading…</div>
   );
 }
 

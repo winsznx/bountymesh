@@ -90,7 +90,7 @@ export function StateNode({
           )}
         </div>
         <div className="space-y-1">
-          <div className={`font-display text-[22px] leading-[0.94] tracking-heading-sm lg:text-[26px] xl:text-[28px] ${s.label}`}>
+          <div className={`font-display text-[26px] leading-[0.94] tracking-heading-sm xl:text-[19px] ${s.label}`}>
             {STATE_LABEL[state]}
           </div>
           {caption && (
@@ -207,15 +207,17 @@ export function ProtocolDiagram() {
         </a>
       </div>
 
-      {/* Desktop horizontal rail */}
-      <div className="hidden grid-cols-5 gap-4 lg:grid xl:gap-6">
+      {/* Desktop horizontal rail — only at xl+, where columns are wide enough
+          for the labels AND the rail arrows (xl:flex) both render. Below xl we
+          use the vertical rail, which never clips. */}
+      <div className="hidden grid-cols-5 gap-5 xl:grid">
         {states.map((s, i) => (
           <DiagramStep key={s.id} index={i} total={states.length} state={s} />
         ))}
       </div>
 
       {/* Mobile + tablet vertical rail */}
-      <div className="flex flex-col gap-3 lg:hidden">
+      <div className="flex flex-col gap-3 xl:hidden">
         {states.map((s) => (
           <div key={s.id} className="flex flex-col gap-2">
             <StateNode {...s} />
@@ -576,84 +578,87 @@ interface EcosystemNode {
   surface: "ash" | "abyssal" | "violet" | "orange";
 }
 
-/**
- * Ecosystem map — flat node graph of protocol participants. Used in the
- * community section to show who participates in the bounty lifecycle.
- */
-export function EcosystemMap() {
-  const signers: EcosystemNode[] = [
-    { label: "POSTER", role: "wallet · signs Post / Accept", surface: "ash" },
-    { label: "AGENT", role: "wallet · signs Claim / Submit / Withdraw", surface: "ash" },
-  ];
-  const contract: EcosystemNode = {
-    label: "CONTRACT",
-    role: "Sails program · 9 methods · escrow",
-    surface: "violet",
-  };
-  const offchain: EcosystemNode[] = [
-    { label: "INDEXER", role: "Postgres + PostGraphile · live projection", surface: "ash" },
-    { label: "SDK", role: "@bountymesh/sdk · TypeScript client", surface: "ash" },
-    { label: "A2A HUB", role: "Vara Agent Network · registered app", surface: "ash" },
-  ];
+const ECOSYSTEM_SURFACE_CLASS: Record<EcosystemNode["surface"], string> = {
+  ash: "bg-ash-white text-abyssal-ink",
+  abyssal: "bg-abyssal-ink text-pure-white",
+  violet: "bg-cyber-violet text-pure-white",
+  orange: "bg-digital-orange text-pure-white",
+};
 
-  const surfaceClass: Record<EcosystemNode["surface"], string> = {
-    ash: "bg-ash-white text-abyssal-ink",
-    abyssal: "bg-abyssal-ink text-pure-white",
-    violet: "bg-cyber-violet text-pure-white",
-    orange: "bg-digital-orange text-pure-white",
-  };
+const ECOSYSTEM_SIGNERS: EcosystemNode[] = [
+  { label: "POSTER", role: "wallet · signs Post / Accept", surface: "ash" },
+  { label: "AGENT", role: "wallet · signs Claim / Submit / Withdraw", surface: "ash" },
+];
 
-  const Card = ({ node }: { node: EcosystemNode }) => (
-    <div className={`space-y-1 rounded-card px-5 py-4 ${surfaceClass[node.surface]}`}>
-      <div className="font-display text-lg tracking-heading-sm">
-        {node.label}
-      </div>
+const ECOSYSTEM_CONTRACT: EcosystemNode = {
+  label: "CONTRACT",
+  role: "Sails program · 9 methods · escrow",
+  surface: "violet",
+};
+
+const ECOSYSTEM_OFFCHAIN: EcosystemNode[] = [
+  { label: "INDEXER", role: "Postgres + PostGraphile · live projection", surface: "ash" },
+  { label: "SDK", role: "@bountymesh/sdk · TypeScript client", surface: "ash" },
+  { label: "A2A HUB", role: "Vara Agent Network · registered app", surface: "ash" },
+];
+
+function EcosystemCard({ node }: { node: EcosystemNode }) {
+  return (
+    <div className={`space-y-1 rounded-card px-5 py-4 ${ECOSYSTEM_SURFACE_CLASS[node.surface]}`}>
+      <div className="font-display text-lg tracking-heading-sm">{node.label}</div>
       <div className="text-[11px] leading-snug opacity-80">{node.role}</div>
     </div>
   );
+}
 
-  const SectionLabel = ({ children }: { children: string }) => (
+function EcosystemSectionLabel({ children }: { children: string }) {
+  return (
     <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-abyssal-ink/40">
       {children}
     </div>
   );
+}
 
-  const FlowArrow = () => (
+function EcosystemFlowArrow() {
+  return (
     <div className="flex justify-center" aria-hidden>
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-abyssal-ink/5">
         <ArrowRight className="h-4 w-4 rotate-90 text-abyssal-ink/50" />
       </div>
     </div>
   );
+}
 
+/**
+ * Ecosystem map — flat node graph of protocol participants. Used in the
+ * community section to show who participates in the bounty lifecycle.
+ */
+export function EcosystemMap() {
   return (
     <div className="space-y-3">
-      {/* Wallet signers — input side */}
       <div className="space-y-2">
-        <SectionLabel>01 · Wallet signers</SectionLabel>
+        <EcosystemSectionLabel>01 · Wallet signers</EcosystemSectionLabel>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {signers.map((n) => (
-            <Card key={n.label} node={n} />
+          {ECOSYSTEM_SIGNERS.map((n) => (
+            <EcosystemCard key={n.label} node={n} />
           ))}
         </div>
       </div>
 
-      <FlowArrow />
+      <EcosystemFlowArrow />
 
-      {/* Contract — the focal hub */}
       <div className="space-y-2">
-        <SectionLabel>02 · On chain</SectionLabel>
-        <Card node={contract} />
+        <EcosystemSectionLabel>02 · On chain</EcosystemSectionLabel>
+        <EcosystemCard node={ECOSYSTEM_CONTRACT} />
       </div>
 
-      <FlowArrow />
+      <EcosystemFlowArrow />
 
-      {/* Off-chain surface — output side */}
       <div className="space-y-2">
-        <SectionLabel>03 · Off-chain surface</SectionLabel>
+        <EcosystemSectionLabel>03 · Off-chain surface</EcosystemSectionLabel>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {offchain.map((n) => (
-            <Card key={n.label} node={n} />
+          {ECOSYSTEM_OFFCHAIN.map((n) => (
+            <EcosystemCard key={n.label} node={n} />
           ))}
         </div>
       </div>
