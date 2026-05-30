@@ -236,6 +236,29 @@ export async function boot(config: IndexerConfig, logger: Logger): Promise<Index
     const headAtBoot = await getHeadBlockNumber(chainApi.api);
     healthState.setHeadBlock(headAtBoot);
 
+    // ─── Stage 3.5 — reader pool + HTTP server (BIND EARLY) ────────────
+    // The HTTP server MUST bind before Stage 4 backfill so /health is
+    // reachable during cold-start catch-up. Without this hoist, /health
+    // returns ECONNREFUSED for the entire backfill window (which can be
+    // 40+ minutes on a fresh DB), and Railway's healthcheckTimeout becomes
+    // a black-box startup grace period rather than a real liveness probe.
+    // mode='backfilling' is a valid health response (returns 200 with the
+    // current watermark/head delta), not an outage.
+    if (config.mode !== 'processor') {
+      logger.info({ op: 'boot', stage: 3.5 }, 'reader pool + http server (pre-backfill)');
+      readerPool = createReaderPool(config);
+      rollback.unshift({ name: 'readerPool.end', fn: () => readerPool!.end() });
+      server = startHttpServer({
+        config,
+        readerPool,
+        writerPool: writerPool!,
+        writerDb: writerDb!,
+        healthState,
+        logger,
+      });
+      rollback.unshift({ name: 'server.close', fn: () => server!.close() });
+    }
+
     // ─── Stage 4 — backfill from watermark to current finalized ────────
     if (config.mode !== 'serve') {
       logger.info({ op: 'boot', stage: 4 }, 'backfill stage 4');
@@ -316,21 +339,8 @@ export async function boot(config: IndexerConfig, logger: Logger): Promise<Index
       healthState.setMode('live');
     }
 
-    // ─── Stage 6 — reader pool + HTTP server ──────────────────────────
-    if (config.mode !== 'processor') {
-      logger.info({ op: 'boot', stage: 6 }, 'reader pool + http server');
-      readerPool = createReaderPool(config);
-      rollback.unshift({ name: 'readerPool.end', fn: () => readerPool!.end() });
-      server = startHttpServer({
-        config,
-        readerPool,
-        writerPool: writerPool!,
-        writerDb: writerDb!,
-        healthState,
-        logger,
-      });
-      rollback.unshift({ name: 'server.close', fn: () => server!.close() });
-    }
+    // Stage 6 retired — HTTP server is now bound in Stage 3.5 so /health
+    // stays reachable through the cold-start backfill window.
 
     logger.info({ op: 'boot', stage: 'complete' }, 'indexer boot complete');
   } catch (err) {

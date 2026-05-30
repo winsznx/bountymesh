@@ -103,9 +103,39 @@ function eventPayloadJson(event: BufferedEvent): Record<string, unknown> {
         amount: event.amount.toString(),
         withdrawnAt: event.withdrawnAt,
       };
+    case 'BountyCancelled':
+      return {
+        id: event.id.toString(),
+        by: event.by,
+        refunded: event.refunded.toString(),
+        cancelledAt: event.cancelledAt,
+      };
+    case 'BountyRejected':
+      return {
+        id: event.id.toString(),
+        by: event.by,
+        worker: event.worker,
+        reason: event.reason,
+        rejectedAt: event.rejectedAt,
+      };
+    case 'BountyTimedOut':
+      return {
+        id: event.id.toString(),
+        lastState: event.lastState,
+        calledBy: event.calledBy,
+        refundedTo: event.refundedTo,
+        timedOutAt: event.timedOutAt,
+      };
+    case 'BountyRevoked':
+      return {
+        id: event.id.toString(),
+        by: event.by,
+        refundedTo: event.refundedTo,
+        revokedAt: event.revokedAt,
+      };
     default: {
-      const e = event as unknown as Record<string, unknown>;
-      return { eventName: e.eventName, unknownShape: true };
+      const _exhaustive: never = event;
+      throw new Error(`eventPayloadJson: unhandled event variant ${JSON.stringify(_exhaustive)}`);
     }
   }
 }

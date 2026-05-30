@@ -37,12 +37,17 @@ async function forward(req: NextRequest, path: string[]): Promise<Response> {
   const accept = req.headers.get("accept");
   if (accept) headers.set("accept", accept);
 
+  // 10s ceiling — if indexer is mid-backfill or transiently flapping, fail
+  // fast rather than hanging the browser request behind a 60s default.
+  const abortSignal = AbortSignal.timeout(10_000);
+
   const init: RequestInit = {
     method: req.method,
     headers,
     // GET/HEAD must not carry a body.
     body: req.method === "GET" || req.method === "HEAD" ? undefined : await req.text(),
     redirect: "manual",
+    signal: abortSignal,
   };
 
   try {
