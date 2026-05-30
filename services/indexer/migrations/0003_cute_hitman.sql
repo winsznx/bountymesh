@@ -1,0 +1,1 @@
+ALTER TABLE "bounties" ADD COLUMN "result_payload" text;

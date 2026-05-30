@@ -63,6 +63,7 @@ export const bounties = pgTable(
     withdrawnAt: bigint('withdrawn_at', { mode: 'number' }),
     withdrawn: boolean('withdrawn').notNull().default(false),
     resultHash: text('result_hash'),
+    resultPayload: text('result_payload'),
     postTxHash: text('post_tx_hash'),
     claimTxHash: text('claim_tx_hash'),
     submitTxHash: text('submit_tx_hash'),

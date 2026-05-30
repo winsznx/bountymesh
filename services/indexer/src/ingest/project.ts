@@ -94,6 +94,7 @@ export async function projectEvent(
           status: 'Submitted',
           submittedAt: event.submittedAt,
           resultHash: event.resultHash,
+          resultPayload: event.resultPayload,
           submitTxHash: event.txHash,
           lastEventBlock: blockNumber,
         })

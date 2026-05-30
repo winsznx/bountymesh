@@ -119,6 +119,7 @@ describe('PendingBuffer', () => {
         id: 1n,
         worker: ZERO_ADDR,
         resultHash: ZERO_TX,
+        resultPayload: null,
         submittedAt: 7,
         blockHash: '0xb1' as HexString,
         txHash: ZERO_TX,

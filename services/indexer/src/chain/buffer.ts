@@ -81,7 +81,7 @@ export interface BountyRevokedEvent {
 export type BufferedEvent =
   | ({ eventName: 'BountyPosted' } & BountyPostedEvent)
   | ({ eventName: 'BountyClaimed' } & BountyClaimedEvent)
-  | ({ eventName: 'BountySubmitted' } & BountySubmittedEvent)
+  | ({ eventName: 'BountySubmitted'; resultPayload: string | null } & BountySubmittedEvent)
   | ({ eventName: 'BountyAccepted' } & BountyAcceptedEvent)
   | ({ eventName: 'BountyWithdrawn' } & BountyWithdrawnEvent)
   | ({ eventName: 'BountyCancelled' } & BountyCancelledEvent)

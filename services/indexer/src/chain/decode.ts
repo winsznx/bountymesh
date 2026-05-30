@@ -125,19 +125,56 @@ interface SignedBlockShape {
  * The walk-back was prototyped via MessageQueued.id lookup but rejected as
  * over-engineering for hackathon-grade volume.
  */
-function collectUserSendTxHashes(
+interface UserSend {
+  txHash: HexString;
+  /** SCALE-encoded sails call payload: [String service][String fn][args]. */
+  callPayloadHex: HexString;
+}
+
+function collectUserSends(
   signedBlock: SignedBlockShape,
   programId: HexString,
-): HexString[] {
-  const out: HexString[] = [];
+): UserSend[] {
+  const out: UserSend[] = [];
   for (const ext of signedBlock.block.extrinsics) {
     if (!ext.isSigned) continue;
     if (ext.method.section !== 'gear' || ext.method.method !== 'sendMessage') continue;
     const destProgramId = ext.method.args[0]?.toHex?.();
     if (destProgramId !== programId) continue;
-    out.push(ext.hash.toHex());
+    // gear.sendMessage(destination, payload, gas_limit, value, keep_alive):
+    // args[1] is the SCALE-encoded sails call payload.
+    const callPayloadHex = ext.method.args[1]?.toHex?.() ?? ('0x' as HexString);
+    out.push({ txHash: ext.hash.toHex(), callPayloadHex });
   }
   return out;
+}
+
+/**
+ * Decode the result_payload arg out of a Submit call payload.
+ *
+ * Symmetric with the SDK's encode side (generated lib.ts: submit() builds the
+ * call from type string '(u64, String, H256)' through the same registry). The
+ * sails call envelope is [String service][String fn][args-tuple]; we decode the
+ * full envelope as '(String, String, (u64, String, H256))' and take args[1].
+ *
+ * Defensive: any decode failure returns null. The bounty row still updates with
+ * result_hash + status from the event; result_payload is backfillable later.
+ */
+function decodeSubmitResultPayload(
+  registry: TypeRegistry,
+  callPayloadHex: HexString,
+): string | null {
+  try {
+    const decoded = registry.createType(
+      '(String, String, (u64, String, H256))',
+      callPayloadHex,
+    ) as unknown as { toJSON: () => unknown[] };
+    const tuple = decoded.toJSON();
+    const args = tuple[2] as [unknown, string, unknown];
+    return typeof args[1] === 'string' ? args[1] : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -159,7 +196,7 @@ export async function decodeBlockEvents(
   const records = (await apiAt.query.system.events()) as unknown as SubstrateEventRecord[];
 
   const out: BufferedEvent[] = [];
-  let userSendTxHashes: HexString[] | null = null;
+  let userSends: UserSend[] | null = null;
   let bountyEventIdx = 0;
 
   for (const { event } of records) {
@@ -177,12 +214,14 @@ export async function decodeBlockEvents(
     // user extrinsic in the same block (FIFO order). Lazy-fetch the
     // signedBlock only when we actually have an event to attribute.
     let txHash: HexString = '0x' as HexString;
-    if (userSendTxHashes === null) {
+    let callPayloadHex: HexString | null = null;
+    if (userSends === null) {
       const signedBlock = (await api.rpc.chain.getBlock(blockHash)) as unknown as SignedBlockShape;
-      userSendTxHashes = collectUserSendTxHashes(signedBlock, programId);
+      userSends = collectUserSends(signedBlock, programId);
     }
-    if (bountyEventIdx < userSendTxHashes.length) {
-      txHash = userSendTxHashes[bountyEventIdx]!;
+    if (bountyEventIdx < userSends.length) {
+      txHash = userSends[bountyEventIdx]!.txHash;
+      callPayloadHex = userSends[bountyEventIdx]!.callPayloadHex;
     }
     bountyEventIdx++;
 
@@ -191,7 +230,18 @@ export async function decodeBlockEvents(
       string,
       unknown
     >;
-    out.push(normalizeDecodedEvent(evName, raw, blockHash, txHash));
+
+    // P6 envelope fix: the BountySubmitted EVENT carries only result_hash, not
+    // the payload. The payload lives in the originating Submit CALL — decode it
+    // from the paired sendMessage extrinsic. Conditional on event type because
+    // other calls (Post/Claim/Accept/…) have different arg tuples that would
+    // mis-decode against the Submit type string.
+    const resultPayload =
+      evName === 'BountySubmitted' && callPayloadHex !== null
+        ? decodeSubmitResultPayload(registry, callPayloadHex)
+        : null;
+
+    out.push(normalizeDecodedEvent(evName, raw, blockHash, txHash, resultPayload));
   }
 
   return out;
@@ -202,6 +252,7 @@ function normalizeDecodedEvent(
   raw: Record<string, unknown>,
   blockHash: HexString,
   txHash: HexString,
+  resultPayload: string | null = null,
 ): BufferedEvent {
   switch (eventName) {
     case 'BountyPosted':
@@ -235,6 +286,7 @@ function normalizeDecodedEvent(
         worker: raw.worker as HexString,
         resultHash: raw.result_hash as HexString,
         submittedAt: raw.submitted_at as number,
+        resultPayload,
         blockHash,
         txHash,
       };
