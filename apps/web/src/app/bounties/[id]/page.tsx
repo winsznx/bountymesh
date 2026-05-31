@@ -10,6 +10,7 @@ import { BountyAcceptanceCriteria } from "@/components/bounty/BountyAcceptanceCr
 import { BountyEventTimeline } from "@/components/bounty/BountyEventTimeline";
 import { EnvelopeViewer } from "@/components/bounty/EnvelopeViewer";
 import { BountyActionButtons } from "@/components/bounty/BountyActionButtons";
+import { PingAgentsButton } from "@/components/bounty/PingAgentsButton";
 
 const ENVELOPE_STATES = new Set(["Submitted", "Accepted", "Withdrawn"]);
 
@@ -51,6 +52,7 @@ export default function BountyDetailPage({
             bounty={bounty}
             currentBlock={head?.head ?? null}
           />
+          <PingAgentsButton bounty={bounty} />
           <BountyAcceptanceCriteria bounty={bounty} />
           <BountyEventTimeline events={events} />
           {ENVELOPE_STATES.has(bounty.status) && (
