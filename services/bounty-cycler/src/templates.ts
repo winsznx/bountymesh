@@ -1,7 +1,8 @@
 /**
- * Bounty templates. Rotates through 12 substantive offers across the
- * three judged tracks (Services / Economy / Open). Title gets a "— cycle N"
- * suffix at post time so individual entries are distinguishable on Subscan.
+ * Bounty templates. Rotates through substantive offers across the
+ * three judged tracks (Services / Economy / Open). Titles are real
+ * task descriptions; the on-chain bounty id is the unique identifier,
+ * no need for "— cycle N" disambiguation.
  */
 
 export interface BountyTemplate {
@@ -94,5 +95,89 @@ export const BOUNTY_TEMPLATES: BountyTemplate[] = [
       'Given a Vara mainnet extrinsic (block + index), fetch it and return a one-sentence English summary plus a structured object with section, method, signer, and decoded args.',
     acceptance:
       'JSON {"summary": "...", "details": {"section":"...","method":"...","signer":"...","args":{...}}}.',
+  },
+  {
+    title: 'Summarize 6 hours of Vara A2A integration activity',
+    description:
+      'Query the A2A indexer at https://agents-api.vara.network/graphql for all ChatMessage and ChatMention rows over the last 6 hours. Return a JSON object grouping by Application authorHandle.',
+    acceptance:
+      'JSON { handle: { sent: int, mentioned: int, lastMsgBlock: int } } sorted by sent desc.',
+  },
+  {
+    title: 'Audit indexer BountySubmitted decode against a sample tx hash',
+    description:
+      'Given a Vara mainnet tx hash for a BountySubmitted extrinsic on program 0xfa09abea…, fetch the raw event data via @gear-js/api and compare against the bountymesh indexer projection at https://api.bountymesh.xyz/graphql. Report any field mismatch.',
+    acceptance:
+      'JSON { match: bool, mismatched: [field, ...], indexer: {...}, onChain: {...} }.',
+  },
+  {
+    title: 'Generate a 3-line bio for a Vara agent given their handle',
+    description:
+      'Given an A2A handle, query https://agents-api.vara.network/graphql for the Application record and IdentityCard. Produce a 3-line bio: line 1 = what_i_do, line 2 = top 2 tags, line 3 = on-chain stats (registeredAt block, mentionCount).',
+    acceptance:
+      'Three lines of plain text, no markdown. Max 80 chars per line.',
+  },
+  {
+    title: 'Verify sha256 of a delivered envelope against the on-chain commit',
+    description:
+      'Given a BountyMesh bounty id in Submitted state, fetch result_payload + result_hash via api.bountymesh.xyz/graphql, compute canonical-JSON sha256 of the payload, and report match vs commit.',
+    acceptance:
+      'JSON { bountyId, match: bool, computedHash: "0x…", onChainHash: "0x…" }.',
+  },
+  {
+    title: 'Compute Vara mainnet block time from the last 1000 finalized headers',
+    description:
+      'Query mainnet for the last 1000 finalized block headers (head to head-999) and return mean block time in seconds, with min/max, all to 2-decimal precision.',
+    acceptance:
+      'JSON { meanSec, minSec, maxSec, sampleSize: 1000 }.',
+  },
+  {
+    title: 'List worker addresses ranked by completion count on BountyMesh',
+    description:
+      'Query https://api.bountymesh.xyz/graphql for distinct workers across BountySubmitted events, ranked by submit count descending. Return top 20.',
+    acceptance:
+      'JSON array of { address (0x hex), submitCount, distinctBounties, lastActiveBlock } sorted by submitCount desc.',
+  },
+  {
+    title: 'Diff two Vara A2A IdentityCard versions for a given handle',
+    description:
+      'Given a handle and a block height, return the IdentityCard at that block + the current IdentityCard, with field-level diff (changed/unchanged per field).',
+    acceptance:
+      'JSON { handle, atBlock: {...}, current: {...}, diff: { fieldName: {from, to, changed} } }.',
+  },
+  {
+    title: 'Recover the canonical envelope JSON from an on-chain result_payload',
+    description:
+      'BountyMesh stores result_payload as the canonical-JSON string. Given a bounty id, fetch the row, pretty-print the canonical JSON, and report sha256 match against result_hash.',
+    acceptance:
+      'JSON { bountyId, prettyPrinted: {...}, sha256Match: bool, hashedString: "..." }.',
+  },
+  {
+    title: 'Score an A2A Application against the Track 03 economy rubric',
+    description:
+      'Given an A2A application handle, fetch its on-chain metrics (chatPosts, chatMentions, registeredAt) and return a 0-100 score per the Track 03 / Economy & Markets scoring rubric (visibility, integration depth, activity).',
+    acceptance:
+      'JSON { handle, score, breakdown: { visibility, integration, activity } } each 0-100.',
+  },
+  {
+    title: 'Cluster Vara A2A Applications by capability-tag overlap',
+    description:
+      'Query https://agents-api.vara.network/graphql for all Applications + their tags. Compute Jaccard similarity matrix and return clusters (similarity >= 0.5).',
+    acceptance:
+      'JSON [ { clusterId, handles: [...], sharedTags: [...] } ] for clusters of size >= 2.',
+  },
+  {
+    title: 'Render a Subscan-link-rich event timeline for a BountyMesh bounty',
+    description:
+      'Given a bounty id, return the event timeline (Posted/Claimed/Submitted/Accepted/Withdrawn) where every event has a clickable vara.subscan.io URL built from blockNumber + extrinsicHash.',
+    acceptance:
+      'JSON array of { kind, block, ts, subscanUrl, payloadSummary }.',
+  },
+  {
+    title: 'Detect duplicate Open bounties by title similarity on BountyMesh',
+    description:
+      'Query Open bounties from https://api.bountymesh.xyz/graphql, compute pairwise title similarity (Levenshtein or trigram), return pairs with similarity >= 0.8.',
+    acceptance:
+      'JSON array of { idA, idB, titleA, titleB, similarity }.',
   },
 ];

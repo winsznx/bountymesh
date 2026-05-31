@@ -1,16 +1,18 @@
 /**
  * Chat post template pools.
  *
- * Two modes:
- *   - INVITATION (preferred): a real Open bounty exists, we draw a template
- *     and weave in {title}/{id}/{reward}/{track}/{deadline} + matched
- *     agent handles. Each post feels like a real coordination message.
- *   - GENERIC (fallback): no Open bounties exist this cycle, we draw a
- *     generic announcement so the cron doesn't go silent.
+ * Three modes, mixed in a 60/40 (data-driven / invitation) rotation per cycle.
+ * Both modes pull live indexer data — no cycle-counter narration. Generic
+ * templates are fallback only when no live data is available.
  *
- * Generic templates retain the {cycle} substitution for distinguishability.
- * Invitation templates can also include {cycle} but typically don't —
- * the bounty id IS the distinguisher.
+ *   - DATA_DRIVEN: real-time numbers from the indexer (recent settle,
+ *     hourly throughput, oldest Open). Reads as reporting.
+ *   - INVITATION: a real Open bounty + capability-matched mentions.
+ *   - GENERIC: no live data — terse statement of what BountyMesh is.
+ *
+ * Templates never include "Cycle #N" or "— cycle N" sign-offs. Closing
+ * lines rotate from CLOSER_POOL (some entries are empty — silence
+ * naturalises the rhythm).
  */
 
 export interface ChatTemplate {
@@ -21,52 +23,57 @@ export interface ChatTemplate {
 
 export const INVITATION_TEMPLATES: ChatTemplate[] = [
   {
-    body: 'Open {track} bounty on @bountymesh: "{title}" — {rewardVara} VARA escrow. {mentionsLine} — capability match. Claim: bountymesh.xyz/bounties/{id}',
+    body: 'Open: bounty #{id} on @bountymesh — "{title}" ({rewardVara} VARA, {track}). {mentionsLine} — capability match. bountymesh.xyz/bounties/{id}',
     mentionCount: 2,
   },
   {
-    body: 'Looking for {track} work — bounty #{id} just posted on @bountymesh. "{title}". {rewardVara} VARA, sha256-envelope settlement. {mentionsLine} interested? bountymesh.xyz/bounties/{id}',
+    body: 'Posted: "{title}" — {rewardVara} VARA escrow on @bountymesh. {mentionsLine}, your track. bountymesh.xyz/bounties/{id}',
     mentionCount: 2,
   },
   {
-    body: '{track} track bounty live: "{title}" on @bountymesh. {rewardVara} VARA, two-phase settlement, no platform fee. {mentionsLine} — your track. bountymesh.xyz/bounties/{id}',
+    body: 'Live now: {track}-track bounty #{id}, {rewardVara} VARA — "{title}". sha256-envelope settlement. {mentionsLine}. bountymesh.xyz/bounties/{id}',
     mentionCount: 2,
   },
   {
-    body: 'Bounty #{id} open on @bountymesh — "{title}" ({rewardVara} VARA). Permissionless claim, envelope-verified delivery. {mentionsLine} — relevant?',
+    body: 'Heads up: bounty #{id} — "{title}" — open for {track} work, {rewardVara} VARA. {mentionsLine}',
     mentionCount: 2,
   },
   {
-    body: 'New {track} bounty: "{title}". {rewardVara} VARA escrowed on @bountymesh. Claim, submit envelope, withdraw — fully on-chain. {mentionsLine} bountymesh.xyz/bounties/{id}',
+    body: 'Active: "{title}" on @bountymesh. {rewardVara} VARA, Track {track}. {mentionsLine} — relevant capabilities. bountymesh.xyz/bounties/{id}',
     mentionCount: 3,
   },
   {
-    body: 'Posted {rewardVara} VARA bounty on @bountymesh for {track} work: "{title}". sha256-committed delivery. {mentionsLine} — looking at #{id}?',
+    body: 'Quick win: {rewardVara} VARA for "{title}" — bounty #{id}, {track} track. {mentionsLine}. bountymesh.xyz/bounties/{id}',
     mentionCount: 2,
-  },
-  {
-    body: 'Coordination ping: bounty #{id} on @bountymesh — "{title}". {rewardVara} VARA. Worker reputation lands on @bountymesh-rep after Accept. {mentionsLine}',
-    mentionCount: 2,
-  },
-  {
-    body: 'Open bounty for {track} agents: "{title}" — {rewardVara} VARA on @bountymesh. {mentionsLine}. Lifecycle: Claim → Submit envelope → Accept → Withdraw. bountymesh.xyz/bounties/{id}',
-    mentionCount: 3,
   },
 ];
 
 export const GENERIC_TEMPLATES: ChatTemplate[] = [
   {
-    body: '@bountymesh status cycle #{cycle}: indexer live, two-phase settlement working, sha256 envelopes verified on every Accept. Track 03 / Economy.',
+    body: '@bountymesh: indexer live, two-phase settlement working, sha256 envelopes verified on every Accept. Track 03 / Economy.',
     mentionCount: 1,
   },
   {
-    body: '@bountymesh-rep is an open reputation registry — any program can record (worker, bounty_id, outcome). Companion to @bountymesh. Cycle #{cycle}.',
+    body: '@bountymesh-rep is an open reputation registry — any program can record (worker, bounty_id, outcome). Companion to @bountymesh.',
     mentionCount: 1,
   },
   {
-    body: 'BountyMesh v2 ships full terminal-state surface: Cancel, Reject, Timeout, Revoke. Permissionless Timeout watchdog any caller can fire post-deadline. Cycle #{cycle}.',
+    body: 'BountyMesh v2 ships full terminal-state surface: Cancel, Reject, Timeout, Revoke. Permissionless Timeout watchdog any caller can fire post-deadline.',
     mentionCount: 1,
   },
+];
+
+/** Closing lines that rotate randomly. Empty strings = silence (intentional). */
+export const CLOSER_POOL: string[] = [
+  "",
+  "",
+  "",
+  "bountymesh.xyz · mainnet only",
+  "Worker auto-claims Services track.",
+  "All envelopes sha256-committed.",
+  "Permissionless. No platform fee.",
+  "Watching: bountymesh.xyz/bounties",
+  "Indexer at api.bountymesh.xyz/graphql",
 ];
 
 /** Other Application handles available for mention fallback. */
@@ -104,6 +111,11 @@ export function pickGenericMentions(cycleIndex: number, count: number): string[]
   return out;
 }
 
+export function pickCloser(cycleIndex: number, salt: number): string {
+  const idx = (cycleIndex * 5 + salt * 11) % CLOSER_POOL.length;
+  return CLOSER_POOL[idx];
+}
+
 const ATOMIC_PER_VARA = 1_000_000_000_000n;
 
 function formatRewardVara(rewardAtomic: bigint): string {
@@ -127,7 +139,11 @@ export interface InvitationContext {
   matchedAgents: string[];
 }
 
-export function renderInvitation(tmpl: ChatTemplate, ctx: InvitationContext, cycleIndex: number): { body: string; mentions: string[] } {
+export function renderInvitation(
+  tmpl: ChatTemplate,
+  ctx: InvitationContext,
+  cycleIndex: number,
+): { body: string; mentions: string[] } {
   const mentions = ctx.matchedAgents.slice(0, tmpl.mentionCount);
   const mentionsLine = mentions.map((h) => `@${h}`).join(' ');
   const body = tmpl.body
@@ -135,11 +151,57 @@ export function renderInvitation(tmpl: ChatTemplate, ctx: InvitationContext, cyc
     .replace('{title}', truncateTitle(ctx.title))
     .replace('{track}', ctx.track)
     .replace('{rewardVara}', formatRewardVara(ctx.rewardAtomic))
-    .replace('{mentionsLine}', mentionsLine)
-    .replace('{cycle}', String(cycleIndex));
-  return { body, mentions };
+    .replace('{mentionsLine}', mentionsLine);
+  const closer = pickCloser(cycleIndex, 1);
+  return { body: closer ? `${body} · ${closer}` : body, mentions };
 }
 
 export function renderGeneric(tmpl: ChatTemplate, cycleIndex: number): string {
-  return tmpl.body.replace('{cycle}', String(cycleIndex));
+  const closer = pickCloser(cycleIndex, 7);
+  return closer ? `${tmpl.body} · ${closer}` : tmpl.body;
+}
+
+/* ──────────────────────────────────────────────────────────── Data-driven ── */
+
+export interface RecentWithdraw {
+  bountyId: string;
+  rewardAtomic: bigint;
+  workerShortHex: string;
+  durationMinutes: number;
+}
+
+export interface HourlyThroughput {
+  posted: number;
+  accepted: number;
+  withdrawn: number;
+  totalVaraAtomic: bigint;
+}
+
+export interface OldestOpen {
+  bountyId: string;
+  title: string;
+  rewardAtomic: bigint;
+  track: string;
+  hoursOpen: number;
+  matchedAgents: string[];
+}
+
+export function renderRecentWithdraw(d: RecentWithdraw, cycleIndex: number): string {
+  const closer = pickCloser(cycleIndex, 3);
+  const base = `Just settled: bounty #${d.bountyId} (${formatRewardVara(d.rewardAtomic)} VARA) — worker ${d.workerShortHex} delivered in ${d.durationMinutes}min, envelope sha256-verified. bountymesh.xyz/bounties/${d.bountyId}`;
+  return closer ? `${base} · ${closer}` : base;
+}
+
+export function renderHourlyThroughput(d: HourlyThroughput, cycleIndex: number): string {
+  const closer = pickCloser(cycleIndex, 9);
+  const base = `Mainnet ticker: last 60min on @bountymesh — ${d.posted} bounties posted, ${d.accepted} accepted, ${d.withdrawn} settled. ${formatRewardVara(d.totalVaraAtomic)} VARA escrowed this hour. bountymesh.xyz`;
+  return closer ? `${base} · ${closer}` : base;
+}
+
+export function renderOldestOpen(d: OldestOpen, cycleIndex: number): { body: string; mentions: string[] } {
+  const mentions = d.matchedAgents.slice(0, 2);
+  const mentionsLine = mentions.map((h) => `@${h}`).join(' ');
+  const closer = pickCloser(cycleIndex, 13);
+  const base = `Open ${d.hoursOpen}h: bounty #${d.bountyId} (${formatRewardVara(d.rewardAtomic)} VARA, ${d.track}) — "${truncateTitle(d.title)}". ${mentionsLine} — capability match. bountymesh.xyz/bounties/${d.bountyId}`;
+  return { body: closer ? `${base} · ${closer}` : base, mentions };
 }

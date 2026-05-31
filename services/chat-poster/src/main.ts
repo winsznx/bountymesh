@@ -55,7 +55,11 @@ import {
   pickInvitationTemplate,
   renderGeneric,
   renderInvitation,
+  renderOldestOpen,
+  renderRecentWithdraw,
   type InvitationContext,
+  type OldestOpen,
+  type RecentWithdraw,
 } from './templates.js';
 import { matchAgents } from './agent-tags.js';
 
@@ -239,6 +243,92 @@ function pickBountyForInvitation(
   return null;
 }
 
+interface IndexerHealth {
+  status: string;
+  lastFinalizedBlock: number;
+  headBlock: number;
+}
+
+async function fetchHead(): Promise<number | null> {
+  try {
+    const res = await fetch(`${INDEXER_BASE_URL}/health`, { signal: AbortSignal.timeout(8_000) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as IndexerHealth;
+    return body.headBlock ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchRecentWithdraw(): Promise<RecentWithdraw | null> {
+  const query = `{
+    allBounties(filter: { withdrawn: { equalTo: true } }, orderBy: WITHDRAWN_AT_DESC, first: 1) {
+      nodes { id reward worker postedAt withdrawnAt }
+    }
+  }`;
+  try {
+    const res = await fetch(`${INDEXER_BASE_URL}/graphql`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      data?: { allBounties?: { nodes?: Array<{ id: string; reward: string; worker: string | null; postedAt: string | number; withdrawnAt: string | number | null }> } };
+    };
+    const node = body.data?.allBounties?.nodes?.[0];
+    if (!node || !node.worker || node.withdrawnAt === null) return null;
+    const posted = Number(node.postedAt);
+    const withdrawn = Number(node.withdrawnAt);
+    const blocks = Math.max(0, withdrawn - posted);
+    const durationMinutes = Math.max(1, Math.round((blocks * 6) / 60));
+    const w = node.worker;
+    return {
+      bountyId: node.id,
+      rewardAtomic: BigInt(node.reward),
+      workerShortHex: `${w.slice(0, 8)}…${w.slice(-4)}`,
+      durationMinutes,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchOldestOpen(head: number | null): Promise<OldestOpen | null> {
+  const query = `{
+    allBounties(filter: { status: { equalTo: "Open" } }, orderBy: POSTED_AT_ASC, first: 1) {
+      nodes { id title description track reward postedAt }
+    }
+  }`;
+  try {
+    const res = await fetch(`${INDEXER_BASE_URL}/graphql`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      data?: { allBounties?: { nodes?: Array<{ id: string; title: string; description: string; track: string; reward: string; postedAt: string | number }> } };
+    };
+    const node = body.data?.allBounties?.nodes?.[0];
+    if (!node) return null;
+    const posted = Number(node.postedAt);
+    const hoursOpen = head ? Math.max(0, Math.round(((head - posted) * 6) / 3600)) : 0;
+    return {
+      bountyId: node.id,
+      title: node.title,
+      rewardAtomic: BigInt(node.reward),
+      track: node.track,
+      hoursOpen,
+      matchedAgents: matchAgents({ track: node.track, title: node.title, description: node.description }),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -302,39 +392,71 @@ async function main(): Promise<void> {
 
     try {
       let posted = false;
-      const openBounties = await fetchOpenBounties();
-      const candidate = pickBountyForInvitation(openBounties, invitationCounts);
 
-      if (candidate) {
-        const matched = matchAgents({
-          track: candidate.track,
-          title: candidate.title,
-          description: candidate.description,
-        }).filter((h) => resolvedHandles.includes(h));
+      // Rotate modes: even cycles favour data-driven (recent settle / oldest
+      // open), odd cycles favour invitation. Each branch independently falls
+      // through to the next on no-data.
+      const preferDataDriven = cycleIndex % 2 === 0;
 
-        if (matched.length > 0) {
-          const tmpl = pickInvitationTemplate(cycleIndex);
-          const ctx: InvitationContext = {
-            bountyId: candidate.id,
-            title: candidate.title,
-            track: candidate.track,
-            rewardAtomic: BigInt(candidate.reward),
-            matchedAgents: matched,
-          };
-          const { body, mentions: pickedHandles } = renderInvitation(tmpl, ctx, cycleIndex);
-          const pickedRefs = pickedHandles.map((h) => mentions.get(h)!.ref);
-          await postChat(sails, kp, voucherId, body, author, pickedRefs);
-          invitationCounts.set(candidate.id, (invitationCounts.get(candidate.id) ?? 0) + 1);
+      const head = await fetchHead();
+
+      if (preferDataDriven) {
+        // Prefer "Just settled" when there's been a recent withdraw; fall
+        // back to "Open Nh" on the oldest currently-Open bounty.
+        const recent = await fetchRecentWithdraw();
+        if (recent) {
+          const body = renderRecentWithdraw(recent, cycleIndex);
+          // No mentions on settle-narration posts — let the data carry it.
+          await postChat(sails, kp, voucherId, body, author, []);
           posted = true;
-          log.info(
-            { op: 'invitation', bountyId: candidate.id, total: invitationCounts.get(candidate.id) },
-            'invitation posted',
-          );
+          log.info({ op: 'data_driven_settle', bountyId: recent.bountyId }, 'posted recent-withdraw narration');
         } else {
-          log.warn({ bountyId: candidate.id, track: candidate.track }, 'no agents matched candidate; falling back to generic');
+          const oldest = await fetchOldestOpen(head);
+          if (oldest) {
+            const matched = oldest.matchedAgents.filter((h) => resolvedHandles.includes(h));
+            const { body, mentions: pickedHandles } = renderOldestOpen(
+              { ...oldest, matchedAgents: matched },
+              cycleIndex,
+            );
+            const pickedRefs = pickedHandles.map((h) => mentions.get(h)!.ref);
+            await postChat(sails, kp, voucherId, body, author, pickedRefs);
+            posted = true;
+            log.info({ op: 'data_driven_oldest_open', bountyId: oldest.bountyId, hours: oldest.hoursOpen }, 'posted oldest-open narration');
+          }
         }
-      } else {
-        log.info({ openCount: openBounties.length }, 'no invitation candidate (no open bounties or all over invitation cap)');
+      }
+
+      if (!posted) {
+        const openBounties = await fetchOpenBounties();
+        const candidate = pickBountyForInvitation(openBounties, invitationCounts);
+
+        if (candidate) {
+          const matched = matchAgents({
+            track: candidate.track,
+            title: candidate.title,
+            description: candidate.description,
+          }).filter((h) => resolvedHandles.includes(h));
+
+          if (matched.length > 0) {
+            const tmpl = pickInvitationTemplate(cycleIndex);
+            const ctx: InvitationContext = {
+              bountyId: candidate.id,
+              title: candidate.title,
+              track: candidate.track,
+              rewardAtomic: BigInt(candidate.reward),
+              matchedAgents: matched,
+            };
+            const { body, mentions: pickedHandles } = renderInvitation(tmpl, ctx, cycleIndex);
+            const pickedRefs = pickedHandles.map((h) => mentions.get(h)!.ref);
+            await postChat(sails, kp, voucherId, body, author, pickedRefs);
+            invitationCounts.set(candidate.id, (invitationCounts.get(candidate.id) ?? 0) + 1);
+            posted = true;
+            log.info(
+              { op: 'invitation', bountyId: candidate.id, total: invitationCounts.get(candidate.id) },
+              'invitation posted',
+            );
+          }
+        }
       }
 
       if (!posted) {

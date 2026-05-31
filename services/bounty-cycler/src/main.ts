@@ -80,7 +80,10 @@ function pickTrack(cycleIndex: number): Track {
 }
 
 async function postBounty(client: BountyMeshClient, tmpl: BountyTemplate, track: Track, cycleIndex: number): Promise<bigint | null> {
-  const title = `${tmpl.title} — cycle ${cycleIndex}`;
+  // No cycle-counter suffix — the on-chain bounty id is the unique
+  // distinguisher; the title should read as a real task description.
+  void cycleIndex;
+  const title = tmpl.title;
   log.info({ op: 'post', title, track, reward: POST_REWARD_ATOMIC.toString() }, 'posting bounty');
   const res = await client.post({
     title,
