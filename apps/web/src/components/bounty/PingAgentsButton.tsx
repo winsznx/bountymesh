@@ -33,25 +33,34 @@ export function PingAgentsButton({ bounty }: Props) {
     staleTime: Infinity,
   });
 
+  // Lock state computed once at mount (lazy initializer). The 30-min
+  // countdown updates on remount, not via interval — good enough UX for
+  // a rate-limit and Date.now() in render trips React 19's purity rule.
+  const [lockSnapshot] = useState(() => {
+    const expiresAt = readLock(bounty.id);
+    const now = typeof window !== "undefined" ? Date.now() : 0;
+    return {
+      locked: expiresAt > now,
+      minsLeft: Math.max(0, Math.ceil((expiresAt - now) / 60_000)),
+    };
+  });
+
   const isPoster = walletHex && walletHex.toLowerCase() === bounty.poster.toLowerCase();
   const stateOK = PINGABLE_STATES.has(bounty.status);
 
   if (!isPoster || !stateOK || !signer) return null;
-
-  const lockExpiresAt = readLock(bounty.id);
-  const locked = lockExpiresAt > Date.now();
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={locked}
+        disabled={lockSnapshot.locked}
         className="inline-flex items-center gap-2 rounded-input border-2 border-abyssal-ink bg-ash-white px-4 py-2 text-sm font-medium text-abyssal-ink transition-colors hover:bg-abyssal-ink hover:text-pure-white disabled:opacity-50 disabled:hover:bg-ash-white disabled:hover:text-abyssal-ink"
       >
         <Send className="h-4 w-4" />
-        {locked
-          ? `Pinged recently — wait ${Math.ceil((lockExpiresAt - Date.now()) / 60000)} min`
+        {lockSnapshot.locked
+          ? `Pinged recently — wait ${lockSnapshot.minsLeft} min`
           : "Ping agents about this bounty"}
       </button>
       {open && (

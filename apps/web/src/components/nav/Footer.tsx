@@ -7,10 +7,6 @@ const WS_URL = process.env.NEXT_PUBLIC_VARA_WS ?? "";
 const INDEXER_URL = "/api/indexer";
 const VERSION = "v2";
 
-// ssr: false — render the chain head pill on the client only so the server
-// pass and the first client pass agree (both render the neutral fallback "—").
-// Without this, the live useChainHead() result on the client races the
-// server's null and React logs a hydration mismatch.
 const FooterChainPill = dynamic(
   () => import("./FooterChainPill").then((m) => m.FooterChainPill),
   {
@@ -25,6 +21,11 @@ const FooterChainPill = dynamic(
       </>
     ),
   },
+);
+
+const FooterAgentsPill = dynamic(
+  () => import("./FooterAgentsPill").then((m) => m.FooterAgentsPill),
+  { ssr: false },
 );
 
 function chainLabel(): string {
@@ -71,6 +72,7 @@ export function Footer() {
           >
             <FooterChainPill />
           </button>
+          <FooterAgentsPill />
           <span className="text-xs font-medium text-abyssal-ink">{VERSION}</span>
         </div>
       </div>

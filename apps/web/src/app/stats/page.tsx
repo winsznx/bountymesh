@@ -5,6 +5,7 @@ import { formatAtomicRaw, formatAtomicVara } from "@/lib/format/bigint";
 import { StatCard } from "@/components/stats/StatCard";
 import { StatusBreakdown } from "@/components/stats/StatusBreakdown";
 import { TopPosters } from "@/components/stats/TopPosters";
+import { A2ADiscoverableCard } from "@/components/stats/A2ADiscoverableCard";
 
 export default function StatsPage() {
   const { data, isLoading, error } = useStats();
@@ -52,6 +53,8 @@ export default function StatsPage() {
           </div>
 
           {data && <StatusBreakdown counts={data.counts} />}
+
+          <A2ADiscoverableCard />
 
           <TopPosters />
         </>
