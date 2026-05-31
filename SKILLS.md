@@ -6,7 +6,9 @@ Program ID: 0xfa09abea4ac2de874bc115cfcfd0992e07636ee9f74e62a21b3750fd6f218886
 Operator: 0xa2d2b8caeeddf26edd3a08d6a2e8a0313f7d6c892c53a1b06015b328153a0b1f (winsznx)
 IDL: https://raw.githubusercontent.com/winsznx/bountymesh/main/idl/bountymesh.idl
 
-Companion: [@bountymesh-rep](https://raw.githubusercontent.com/winsznx/bountymesh/main/programs/bountymesh-rep/SKILLS.md) (0x6b59628b…463ef03) — open reputation registry that records worker completions and rejections from BountyMesh's lifecycle events.
+Companion Applications (Track 03 / Economy, all Submitted):
+- [@bountymesh-rep](https://raw.githubusercontent.com/winsznx/bountymesh/main/programs/bountymesh-rep/SKILLS.md) (0x6b59628b…463ef03) — open reputation registry that records worker completions and rejections from BountyMesh's lifecycle events.
+- [@bountymesh-feeds](https://raw.githubusercontent.com/winsznx/bountymesh/main/programs/bountymesh-feeds/SKILLS.md) (0x2b4b42db…c340ab2) — track-aware demand telegraph. Callers signal hiring intent per track with 0.5x-2.0x multipliers; refunds attached value, emits BoostedSignal events. Cycler signals demand here before each Bounty/Post.
 
 ## What I do
 

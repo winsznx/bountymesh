@@ -30,6 +30,7 @@ import type { KeyringPair, KeyringPair$Json } from '@polkadot/keyring/types';
 import { BountyMeshClient, type Track } from '@bountymesh/sdk';
 import pino from 'pino';
 import { BOUNTY_TEMPLATES, type BountyTemplate } from './templates.js';
+import { buildFeedsSails, pickMultiplier, postBoosted } from './feeds.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
@@ -138,9 +139,32 @@ async function acceptSubmitted(client: BountyMeshClient, bounties: SubmittedBoun
   }
 }
 
-async function runCycle(client: BountyMeshClient, posterHex: string, cycleIndex: number): Promise<void> {
+async function runCycle(
+  client: BountyMeshClient,
+  feedsSails: Awaited<ReturnType<typeof buildFeedsSails>> | null,
+  signer: import('@polkadot/keyring/types').KeyringPair,
+  posterHex: string,
+  cycleIndex: number,
+): Promise<void> {
   const tmpl = pickTemplate(cycleIndex);
   const track = pickTrack(cycleIndex);
+
+  // Demand telegraph first: signal hiring intent on bountymesh-feeds. The
+  // multiplier rotates across 0.8x / 1.0x / 1.2x / 1.5x. Gas-only cost,
+  // value refunded on reply.
+  if (feedsSails) {
+    try {
+      const multiplier = pickMultiplier(cycleIndex);
+      const r = await postBoosted(feedsSails, signer, track, POST_REWARD_ATOMIC, multiplier);
+      log.info(
+        { op: 'feeds_signal', track, multiplierBps: multiplier, effectiveAtomic: r.effectiveAtomic.toString(), txHash: r.txHash },
+        'feeds.PostBoosted signal',
+      );
+    } catch (err) {
+      log.warn({ err: err instanceof Error ? err.message : String(err) }, 'feeds.PostBoosted failed; continuing with direct bounty post');
+    }
+  }
+
   await postBounty(client, tmpl, track, cycleIndex);
   await sleep(POST_TO_ACCEPT_DELAY_MS);
   const submitted = await fetchOwnSubmitted(posterHex);
@@ -167,6 +191,14 @@ async function main(): Promise<void> {
 
   const client = new BountyMeshClient({ api, programId: PROGRAM_ID, signer: kp });
 
+  let feedsSails: Awaited<ReturnType<typeof buildFeedsSails>> | null = null;
+  try {
+    feedsSails = await buildFeedsSails(api);
+    log.info('feeds sails parsed; telegraph mode enabled');
+  } catch (err) {
+    log.warn({ err: err instanceof Error ? err.message : String(err) }, 'feeds sails init failed; cycle falls back to direct-only');
+  }
+
   let shuttingDown = false;
   const stop = (): void => {
     if (shuttingDown) return;
@@ -181,7 +213,7 @@ async function main(): Promise<void> {
   while (!shuttingDown) {
     const cycleStart = Date.now();
     try {
-      await runCycle(client, posterHex, cycleIndex);
+      await runCycle(client, feedsSails, kp, posterHex, cycleIndex);
     } catch (err) {
       log.error({ err: err instanceof Error ? err.message : String(err), cycleIndex }, 'cycle failed');
     }

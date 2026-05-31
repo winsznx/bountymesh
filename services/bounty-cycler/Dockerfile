@@ -24,6 +24,7 @@ WORKDIR /app
 
 COPY --from=deps /app /app
 COPY services/bounty-cycler ./services/bounty-cycler
+COPY idl/bountymesh_feeds.idl ./services/bounty-cycler/bountymesh_feeds.idl
 
 WORKDIR /app/services/bounty-cycler
 RUN npm run build
@@ -36,5 +37,6 @@ ENV NODE_ENV=production
 COPY --from=build /app/services/bounty-cycler/dist ./dist
 COPY --from=build /app/services/bounty-cycler/node_modules ./node_modules
 COPY --from=build /app/services/bounty-cycler/package.json ./package.json
+COPY --from=build /app/services/bounty-cycler/bountymesh_feeds.idl ./bountymesh_feeds.idl
 
 CMD ["node", "dist/main.js"]
