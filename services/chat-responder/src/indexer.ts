@@ -64,14 +64,17 @@ function isOurHandle(h: string | null | undefined): h is OurAppHandle {
 }
 
 export async function getRecentMentions(since: Date, limit = 50): Promise<ChatMention[]> {
+  // ChatMentionFilter doesn't support relation-traversal into ChatMessage.ts,
+  // so we can't filter by timestamp at the indexer level. Instead we fetch the
+  // most recent `limit` mentions (DESC by block), drop anything older than
+  // `since` client-side, then reverse to chronological order so the cursor
+  // advances monotonically. Dedup is handled in the caller via SQLite +
+  // cross-deploy indexer probe.
   const query = `
-    query Mentions($recipients: [String!]!, $since: Datetime!, $limit: Int!) {
+    query Mentions($recipients: [String!]!, $limit: Int!) {
       allChatMentions(
-        filter: {
-          recipientHandle: { in: $recipients }
-          chatMessageByMessageId: { ts: { greaterThan: $since } }
-        }
-        orderBy: SUBSTRATE_BLOCK_NUMBER_ASC
+        filter: { recipientHandle: { in: $recipients } }
+        orderBy: SUBSTRATE_BLOCK_NUMBER_DESC
         first: $limit
       ) {
         nodes {
@@ -97,7 +100,7 @@ export async function getRecentMentions(since: Date, limit = 50): Promise<ChatMe
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       query,
-      variables: { recipients: [...OUR_HANDLES], since: since.toISOString(), limit },
+      variables: { recipients: [...OUR_HANDLES], limit },
     }),
     signal: AbortSignal.timeout(15_000),
   });
@@ -108,12 +111,21 @@ export async function getRecentMentions(since: Date, limit = 50): Promise<ChatMe
   };
   if (body.errors?.length) throw new Error(body.errors[0].message);
 
-  const nodes = body.data?.allChatMentions?.nodes ?? [];
+  const rawNodes = body.data?.allChatMentions?.nodes ?? [];
+  // Reverse to chronological order so the caller's cursor advances monotonically.
+  const nodes = [...rawNodes].reverse();
+  const sinceMs = since.getTime();
   const mentions: ChatMention[] = [];
   for (const n of nodes) {
     if (!n.chatMessageByMessageId) continue;
     if (!isOurHandle(n.recipientHandle)) continue;
     const m = n.chatMessageByMessageId;
+    // Client-side `since` filter: skip mentions older than the cursor.
+    // The indexer returns ts as a stringified epoch-millis BigInt (e.g.
+    // "1780265685000"), not ISO — parse it as a number directly.
+    const tsNum = Number(m.ts);
+    const tsMs = Number.isFinite(tsNum) ? tsNum : Date.parse(m.ts);
+    if (Number.isFinite(tsMs) && tsMs < sinceMs) continue;
     const recipientsInMessage = (m.chatMentionsByMessageId?.nodes ?? [])
       .map((r) => r.recipientHandle)
       .filter(isOurHandle);

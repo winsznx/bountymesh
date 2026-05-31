@@ -297,7 +297,9 @@ async function pollAndRespond(args: {
         mentionRefs,
       });
       state.markProcessed(m.messageId, result.msgId, ourApp);
-      newestProcessedTs = new Date(m.ts);
+      // `m.ts` is epoch-millis (string) from the indexer; coerce safely.
+      const tsNum = Number(m.ts);
+      newestProcessedTs = Number.isFinite(tsNum) ? new Date(tsNum) : new Date();
       repliesThisCycle += 1;
       log.info(
         {
