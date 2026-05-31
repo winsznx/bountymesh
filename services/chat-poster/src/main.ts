@@ -2,12 +2,20 @@
  * A2A chat-poster cron service.
  *
  * Posts a message to the Vara Agent Network Chat service every
- * CHAT_INTERVAL_MS (default 15 min). Each post:
- *   - author = Application(BountyMesh program id) — winsznx is the
- *     attested operator; auth check passes for the signing wallet.
- *   - mentions = 1-3 rotating handles from the Track-03 peer pool,
- *     resolved to HandleRef via Registry/ResolveHandle at boot.
- *   - body = rotating template with cycle-index distinguishability.
+ * CHAT_INTERVAL_MS (default 15 min). Each cycle:
+ *   1. Query the BountyMesh indexer for Open bounties.
+ *   2. If ≥1 found: pick the newest unposted one, match it against the
+ *      Vara A2A peer pool (capability tags), draw an invitation template,
+ *      compose the body + mention list.
+ *   3. If 0 found OR all Open bounties already posted twice: fall back
+ *      to a generic announcement template.
+ *   4. Post via Registry/Chat with author = Application(bountymesh PID),
+ *      voucher-paid (the bountymesh Application's own voucher).
+ *
+ * Per-bounty dedupe cap: at most 2 invitation posts per bounty across
+ * the bounty's lifecycle. State is in-process Map (resets on restart;
+ * acceptable since the metrics-freeze window is bounded and the
+ * indexer is the source of truth for "what's Open").
  *
  * Voucher: A2A Hub is a whitelisted program, so gas is voucher-paid.
  * On startup + once per hour, the service POSTs to the voucher backend
@@ -40,7 +48,16 @@ import type { KeyringPair, KeyringPair$Json } from '@polkadot/keyring/types';
 import { Sails } from 'sails-js';
 import { SailsIdlParser } from 'sails-js-parser';
 import pino from 'pino';
-import { CHAT_TEMPLATES, MENTION_POOL, pickMentions, pickTemplate, renderBody } from './templates.js';
+import {
+  MENTION_POOL,
+  pickGenericMentions,
+  pickGenericTemplate,
+  pickInvitationTemplate,
+  renderGeneric,
+  renderInvitation,
+  type InvitationContext,
+} from './templates.js';
+import { matchAgents } from './agent-tags.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
@@ -51,7 +68,9 @@ const RPC_URL = process.env.VARA_RPC_URL ?? 'wss://rpc.vara.network';
 const AGENTS_IDL_URL = process.env.AGENTS_IDL_URL
   ?? 'https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl';
 const VOUCHER_URL = process.env.VOUCHER_URL ?? 'https://voucher-backend-agents.vara.network/voucher';
+const INDEXER_BASE_URL = process.env.INDEXER_BASE_URL ?? 'https://api.bountymesh.xyz';
 const CHAT_INTERVAL_MS = Number(process.env.CHAT_INTERVAL_MS ?? 15 * 60 * 1000);
+const MAX_INVITATIONS_PER_BOUNTY = Number(process.env.MAX_INVITATIONS_PER_BOUNTY ?? 2);
 
 function required(name: string): string {
   const v = process.env[name];
@@ -176,6 +195,50 @@ async function postChat(
   );
 }
 
+interface OpenBounty {
+  id: string;
+  title: string;
+  description: string;
+  track: string;
+  reward: string;
+}
+
+async function fetchOpenBounties(): Promise<OpenBounty[]> {
+  const query = `{
+    allBounties(filter: { status: { equalTo: "Open" } }, orderBy: POSTED_AT_DESC, first: 10) {
+      nodes { id title description track reward }
+    }
+  }`;
+  try {
+    const res = await fetch(`${INDEXER_BASE_URL}/graphql`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      log.warn({ status: res.status }, 'indexer query non-200');
+      return [];
+    }
+    const body = (await res.json()) as { data?: { allBounties?: { nodes?: OpenBounty[] } } };
+    return body.data?.allBounties?.nodes ?? [];
+  } catch (err) {
+    log.warn({ err: err instanceof Error ? err.message : String(err) }, 'indexer query failed');
+    return [];
+  }
+}
+
+function pickBountyForInvitation(
+  bounties: OpenBounty[],
+  invitationCounts: Map<string, number>,
+): OpenBounty | null {
+  for (const b of bounties) {
+    const count = invitationCounts.get(b.id) ?? 0;
+    if (count < MAX_INVITATIONS_PER_BOUNTY) return b;
+  }
+  return null;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -221,6 +284,9 @@ async function main(): Promise<void> {
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
 
+  /** bounty_id → invitations already posted across this process lifetime */
+  const invitationCounts = new Map<string, number>();
+
   let cycleIndex = 0;
   while (!shuttingDown) {
     const cycleStart = Date.now();
@@ -235,11 +301,50 @@ async function main(): Promise<void> {
     }
 
     try {
-      const tmpl = pickTemplate(cycleIndex);
-      const pickedHandles = pickMentions(cycleIndex, tmpl.mentionCount).filter((h) => resolvedHandles.includes(h));
-      const pickedRefs = pickedHandles.map((h) => mentions.get(h)!.ref);
-      const body = renderBody(tmpl, cycleIndex);
-      await postChat(sails, kp, voucherId, body, author, pickedRefs);
+      let posted = false;
+      const openBounties = await fetchOpenBounties();
+      const candidate = pickBountyForInvitation(openBounties, invitationCounts);
+
+      if (candidate) {
+        const matched = matchAgents({
+          track: candidate.track,
+          title: candidate.title,
+          description: candidate.description,
+        }).filter((h) => resolvedHandles.includes(h));
+
+        if (matched.length > 0) {
+          const tmpl = pickInvitationTemplate(cycleIndex);
+          const ctx: InvitationContext = {
+            bountyId: candidate.id,
+            title: candidate.title,
+            track: candidate.track,
+            rewardAtomic: BigInt(candidate.reward),
+            matchedAgents: matched,
+          };
+          const { body, mentions: pickedHandles } = renderInvitation(tmpl, ctx, cycleIndex);
+          const pickedRefs = pickedHandles.map((h) => mentions.get(h)!.ref);
+          await postChat(sails, kp, voucherId, body, author, pickedRefs);
+          invitationCounts.set(candidate.id, (invitationCounts.get(candidate.id) ?? 0) + 1);
+          posted = true;
+          log.info(
+            { op: 'invitation', bountyId: candidate.id, total: invitationCounts.get(candidate.id) },
+            'invitation posted',
+          );
+        } else {
+          log.warn({ bountyId: candidate.id, track: candidate.track }, 'no agents matched candidate; falling back to generic');
+        }
+      } else {
+        log.info({ openCount: openBounties.length }, 'no invitation candidate (no open bounties or all over invitation cap)');
+      }
+
+      if (!posted) {
+        const tmpl = pickGenericTemplate(cycleIndex);
+        const pickedHandles = pickGenericMentions(cycleIndex, tmpl.mentionCount).filter((h) => resolvedHandles.includes(h));
+        const pickedRefs = pickedHandles.map((h) => mentions.get(h)!.ref);
+        const body = renderGeneric(tmpl, cycleIndex);
+        await postChat(sails, kp, voucherId, body, author, pickedRefs);
+        log.info({ op: 'generic_fallback' }, 'posted generic fallback');
+      }
     } catch (err) {
       log.error({ err: err instanceof Error ? err.message : String(err), cycleIndex }, 'chat post failed');
     }
@@ -252,8 +357,8 @@ async function main(): Promise<void> {
   }
 }
 
-// Reference the imports so they're not flagged as unused if dead-code-eliminated.
-void CHAT_TEMPLATES;
+// Reference imports so they're not flagged unused after dead-code elimination.
+void MENTION_POOL;
 
 main().catch((err) => {
   log.fatal({ err: err instanceof Error ? err.stack : String(err) }, 'chat-poster crashed');
