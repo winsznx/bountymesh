@@ -29,7 +29,13 @@ import { cryptoWaitReady } from '@polkadot/util-crypto';
 import type { KeyringPair, KeyringPair$Json } from '@polkadot/keyring/types';
 import { BountyMeshClient, type Track } from '@bountymesh/sdk';
 import pino from 'pino';
-import { BOUNTY_TEMPLATES, type BountyTemplate } from './templates.js';
+import {
+  BOUNTY_TEMPLATES,
+  type BountyTemplate,
+  type BountyContext,
+  pickHandle,
+  renderTemplate,
+} from './templates.js';
 import { buildFeedsSails, pickMultiplier, postBoosted } from './feeds.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
@@ -80,14 +86,10 @@ function pickTrack(cycleIndex: number): Track {
   return TRACK_ROTATION[cycleIndex % TRACK_ROTATION.length];
 }
 
-async function postBounty(client: BountyMeshClient, tmpl: BountyTemplate, track: Track, cycleIndex: number): Promise<bigint | null> {
-  // No cycle-counter suffix — the on-chain bounty id is the unique
-  // distinguisher; the title should read as a real task description.
-  void cycleIndex;
-  const title = tmpl.title;
-  log.info({ op: 'post', title, track, reward: POST_REWARD_ATOMIC.toString() }, 'posting bounty');
+async function postBounty(client: BountyMeshClient, tmpl: BountyTemplate, track: Track): Promise<bigint | null> {
+  log.info({ op: 'post', title: tmpl.title, track, reward: POST_REWARD_ATOMIC.toString() }, 'posting bounty');
   const res = await client.post({
-    title,
+    title: tmpl.title,
     description: tmpl.description,
     acceptance: tmpl.acceptance,
     reward: POST_REWARD_ATOMIC,
@@ -99,6 +101,42 @@ async function postBounty(client: BountyMeshClient, tmpl: BountyTemplate, track:
   }
   log.info({ op: 'post_ok', bountyId: res.value.bountyId.toString(), txHash: res.txHash }, 'bounty posted');
   return res.value.bountyId;
+}
+
+async function fetchChainHead(api: GearApi): Promise<number> {
+  const header = await api.rpc.chain.getHeader();
+  return header.number.toNumber();
+}
+
+async function fetchMaxBountyId(): Promise<string> {
+  try {
+    const q = `{ allBounties(orderBy: ID_DESC, first: 1) { nodes { id } } }`;
+    const res = await fetch(`${INDEXER_BASE}/graphql`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return '0';
+    const body = (await res.json()) as { data?: { allBounties?: { nodes?: Array<{ id: string }> } } };
+    return body.data?.allBounties?.nodes?.[0]?.id ?? '0';
+  } catch {
+    return '0';
+  }
+}
+
+async function buildContext(api: GearApi, cycleIndex: number): Promise<BountyContext> {
+  const [blockHigh, sampleBountyId] = await Promise.all([
+    fetchChainHead(api).catch(() => 0),
+    fetchMaxBountyId(),
+  ]);
+  return {
+    cycleIndex,
+    blockHigh,
+    isoNow: new Date().toISOString(),
+    sampleHandle: pickHandle(cycleIndex),
+    sampleBountyId,
+  };
 }
 
 interface SubmittedBounty {
@@ -140,14 +178,20 @@ async function acceptSubmitted(client: BountyMeshClient, bounties: SubmittedBoun
 }
 
 async function runCycle(
+  api: GearApi,
   client: BountyMeshClient,
   feedsSails: Awaited<ReturnType<typeof buildFeedsSails>> | null,
   signer: import('@polkadot/keyring/types').KeyringPair,
   posterHex: string,
   cycleIndex: number,
 ): Promise<void> {
-  const tmpl = pickTemplate(cycleIndex);
+  const ctx = await buildContext(api, cycleIndex);
+  const rendered = renderTemplate(pickTemplate(cycleIndex), ctx);
   const track = pickTrack(cycleIndex);
+  log.info(
+    { op: 'context', blockHigh: ctx.blockHigh, sampleHandle: ctx.sampleHandle, sampleBountyId: ctx.sampleBountyId },
+    'cycle context resolved',
+  );
 
   // Demand telegraph first: signal hiring intent on bountymesh-feeds. The
   // multiplier rotates across 0.8x / 1.0x / 1.2x / 1.5x. Gas-only cost,
@@ -165,7 +209,7 @@ async function runCycle(
     }
   }
 
-  await postBounty(client, tmpl, track, cycleIndex);
+  await postBounty(client, rendered, track);
   await sleep(POST_TO_ACCEPT_DELAY_MS);
   const submitted = await fetchOwnSubmitted(posterHex);
   if (submitted.length > 0) {
@@ -213,7 +257,7 @@ async function main(): Promise<void> {
   while (!shuttingDown) {
     const cycleStart = Date.now();
     try {
-      await runCycle(client, feedsSails, kp, posterHex, cycleIndex);
+      await runCycle(api, client, feedsSails, kp, posterHex, cycleIndex);
     } catch (err) {
       log.error({ err: err instanceof Error ? err.message : String(err), cycleIndex }, 'cycle failed');
     }
