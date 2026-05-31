@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "services/chat-responder/Dockerfile",
+    "watchPatterns": [
+      "services/chat-responder/**",
+      "agent-starter/idl/**",
+      "idl/bountymesh_feeds.idl",
+      "services/chat-responder/railway.json",
+      "services/chat-responder/Dockerfile"
+    ]
+  },
+  "deploy": {
+    "startCommand": "node dist/main.js",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 50,
+    "numReplicas": 1
+  }
+}
