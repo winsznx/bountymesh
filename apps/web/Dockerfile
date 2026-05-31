@@ -31,9 +31,22 @@ WORKDIR /app
 COPY --from=deps /app /app
 COPY apps/web ./apps/web
 
-# Railway injects service env vars during the build, so NEXT_PUBLIC_* values
-# get baked into the browser bundle correctly. NEXT_OUTPUT_FILE_TRACING_ROOT
-# tells next.config.ts where the monorepo root is.
+# NEXT_PUBLIC_* env vars are substituted INTO the client bundle at build
+# time. Docker build only sees vars declared as ARG, so we ARG-then-ENV
+# each one — Railway forwards same-named service env vars as build args
+# automatically. Without these ARG lines, npm run build sees `undefined`
+# and the browser bundle ships `if (!PROGRAM_ID) throw ...` failures.
+ARG NEXT_PUBLIC_BOUNTYMESH_PROGRAM_ID
+ARG NEXT_PUBLIC_VARA_WS
+ARG NEXT_PUBLIC_INDEXER_URL
+ARG NEXT_PUBLIC_CHAIN_SS
+ARG NEXT_PUBLIC_DEMO_VERIFIED_BOUNTY_ID
+ENV NEXT_PUBLIC_BOUNTYMESH_PROGRAM_ID=$NEXT_PUBLIC_BOUNTYMESH_PROGRAM_ID
+ENV NEXT_PUBLIC_VARA_WS=$NEXT_PUBLIC_VARA_WS
+ENV NEXT_PUBLIC_INDEXER_URL=$NEXT_PUBLIC_INDEXER_URL
+ENV NEXT_PUBLIC_CHAIN_SS=$NEXT_PUBLIC_CHAIN_SS
+ENV NEXT_PUBLIC_DEMO_VERIFIED_BOUNTY_ID=$NEXT_PUBLIC_DEMO_VERIFIED_BOUNTY_ID
+
 ENV NEXT_OUTPUT_FILE_TRACING_ROOT=/app
 
 WORKDIR /app/apps/web
