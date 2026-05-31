@@ -1,0 +1,32 @@
+{
+  "name": "@bountymesh/chat-poster",
+  "version": "0.1.0",
+  "description": "BountyMesh A2A Chat cron — posts to the Vara Agent Network chat on a 15-minute loop with rotating mentions.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts"
+  },
+  "dependencies": {
+    "@gear-js/api": "^0.44.1",
+    "@polkadot/api": "^16.4.1",
+    "@polkadot/keyring": "^14.0.3",
+    "@polkadot/util": "^14.0.3",
+    "@polkadot/util-crypto": "^14.0.3",
+    "pino": "^9.5.0",
+    "sails-js": "^0.5.1",
+    "sails-js-parser": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.0"
+  }
+}
