@@ -120,12 +120,12 @@ function LiveStrip() {
       {cells.map((c) => (
         <div
           key={c.label}
-          className="flex items-center justify-between bg-basalt-canvas px-6 py-5"
+          className="flex min-w-0 flex-col gap-1 bg-basalt-canvas px-5 py-4 md:flex-row md:items-center md:justify-between md:gap-3 md:px-6 md:py-5"
         >
           <span className="text-[10px] font-medium uppercase tracking-wider text-abyssal-ink/60">
             {c.label}
           </span>
-          <span className="font-display text-2xl tracking-heading-sm text-abyssal-ink">
+          <span className="min-w-0 truncate font-display text-xl tracking-heading-sm text-abyssal-ink md:text-2xl">
             {c.value}
           </span>
         </div>

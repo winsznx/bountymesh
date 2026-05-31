@@ -2,7 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-const A2A_GRAPHQL_URL = "https://agents-api.vara.network/graphql";
+// Same-origin proxy. The upstream agents-api.vara.network doesn't allow
+// https://bountymesh.xyz in its CORS allowlist, so the browser calls our
+// /api/a2a/graphql route which forwards server-side.
+const A2A_GRAPHQL_URL = "/api/a2a/graphql";
 
 export interface VaraAgent {
   handle: string;

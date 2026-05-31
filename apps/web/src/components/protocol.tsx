@@ -426,11 +426,11 @@ export function ProofEnvelope({
   return (
     <div className="flex flex-col gap-4 rounded-card bg-pure-white p-6">
       {/* Top — hash band */}
-      <div className="flex items-center justify-between rounded-input bg-abyssal-ink px-4 py-2 text-pure-white">
+      <div className="flex flex-col gap-1 rounded-input bg-abyssal-ink px-4 py-2 text-pure-white md:flex-row md:items-center md:justify-between md:gap-3">
         <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">
           sha256
         </span>
-        <span className="font-mono text-xs">{hash}</span>
+        <span className="break-all font-mono text-xs md:text-right">{hash}</span>
       </div>
 
       {/* Envelope body — canonical-JSON preview */}
@@ -502,18 +502,18 @@ export function HashCompare({
         </div>
       </div>
 
-      <div className="space-y-2 text-xs">
-        <div className="flex items-center justify-between gap-3">
+      <div className="space-y-3 text-xs">
+        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between md:gap-3">
           <span className="font-medium uppercase tracking-wider opacity-60">
             on chain
           </span>
-          <span className="font-mono">{onChain}</span>
+          <span className="break-all font-mono md:text-right">{onChain}</span>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between md:gap-3">
           <span className="font-medium uppercase tracking-wider opacity-60">
             local sha256
           </span>
-          <span className="font-mono">{computed}</span>
+          <span className="break-all font-mono md:text-right">{computed}</span>
         </div>
       </div>
     </div>
