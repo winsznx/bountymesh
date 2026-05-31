@@ -10,8 +10,12 @@
  *   3. Poll indexer for own Submitted bounties; Accept each (idempotent)
  *   4. Sleep remainder of the 30-min window
  *
+ * Env (one of these two is required):
+ *   BOUNTYMESH_POSTER_KEYSTORE_BASE64  — base64 of a polkadot.js / vara-wallet
+ *                                         JSON keystore (unencrypted)
+ *   BOUNTYMESH_POSTER_SEED             — sr25519 URI / mnemonic / raw seed hex
+ *
  * Env:
- *   BOUNTYMESH_POSTER_SEED   — sr25519 URI/mnemonic for the posting wallet
  *   BOUNTYMESH_PROGRAM_ID    — 0x-prefixed program id of BountyMesh v2
  *   VARA_RPC_URL             — wss endpoint (mainnet)
  *   INDEXER_BASE_URL         — public indexer base (default api.bountymesh.xyz)
@@ -21,14 +25,14 @@
 
 import { GearApi } from '@gear-js/api';
 import { Keyring } from '@polkadot/keyring';
-import type { KeyringPair } from '@polkadot/keyring/types';
+import { cryptoWaitReady } from '@polkadot/util-crypto';
+import type { KeyringPair, KeyringPair$Json } from '@polkadot/keyring/types';
 import { BountyMeshClient, type Track } from '@bountymesh/sdk';
 import pino from 'pino';
 import { BOUNTY_TEMPLATES, type BountyTemplate } from './templates.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
-const POSTER_SEED = required('BOUNTYMESH_POSTER_SEED');
 const PROGRAM_ID = required('BOUNTYMESH_PROGRAM_ID') as `0x${string}`;
 const RPC_URL = process.env.VARA_RPC_URL ?? 'wss://rpc.vara.network';
 const INDEXER_BASE = process.env.INDEXER_BASE_URL ?? 'https://api.bountymesh.xyz';
@@ -49,7 +53,22 @@ function required(name: string): string {
 
 function loadKeypair(): KeyringPair {
   const kr = new Keyring({ type: 'sr25519' });
-  return kr.addFromUri(POSTER_SEED);
+  const keystoreB64 = process.env.BOUNTYMESH_POSTER_KEYSTORE_BASE64;
+  if (keystoreB64) {
+    const json = JSON.parse(Buffer.from(keystoreB64, 'base64').toString('utf-8')) as KeyringPair$Json;
+    const pair = kr.addFromJson(json);
+    pair.unlock('');
+    log.info({ source: 'keystore-base64', address: pair.address }, 'keypair loaded');
+    return pair;
+  }
+  const seed = process.env.BOUNTYMESH_POSTER_SEED;
+  if (!seed) {
+    log.error('one of BOUNTYMESH_POSTER_KEYSTORE_BASE64 or BOUNTYMESH_POSTER_SEED must be set');
+    process.exit(1);
+  }
+  const pair = kr.addFromUri(seed);
+  log.info({ source: 'seed-uri', address: pair.address }, 'keypair loaded');
+  return pair;
 }
 
 function pickTemplate(cycleIndex: number): BountyTemplate {
@@ -134,9 +153,10 @@ function sleep(ms: number): Promise<void> {
 
 async function main(): Promise<void> {
   log.info({ rpcUrl: RPC_URL, programId: PROGRAM_ID, intervalMs: CYCLE_INTERVAL_MS }, 'bounty-cycler starting');
+  await cryptoWaitReady();
   const kp = loadKeypair();
   const posterHex = `0x${Buffer.from(kp.publicKey).toString('hex')}`;
-  log.info({ poster: posterHex }, 'keypair loaded');
+  log.info({ poster: posterHex }, 'poster pubkey resolved');
 
   const api = await GearApi.create({ providerAddress: RPC_URL });
   await api.isReady;

@@ -13,9 +13,12 @@
  * On startup + once per hour, the service POSTs to the voucher backend
  * to ensure the wallet has a funded voucher covering $PID.
  *
+ * Env (one of these two is required):
+ *   CHAT_POSTER_KEYSTORE_BASE64 — base64 of a polkadot.js / vara-wallet
+ *                                 JSON keystore (unencrypted)
+ *   CHAT_POSTER_SEED            — sr25519 URI / mnemonic / raw seed hex
+ *
  * Env (required):
- *   CHAT_POSTER_SEED          — sr25519 URI/mnemonic for the signing wallet
- *                               (must be the operator wallet of BOUNTYMESH_PROGRAM_ID)
  *   BOUNTYMESH_PROGRAM_ID     — Application program id for author=Application(.)
  *
  * Env (optional):
@@ -32,7 +35,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { GearApi } from '@gear-js/api';
 import { Keyring } from '@polkadot/keyring';
-import type { KeyringPair } from '@polkadot/keyring/types';
+import { cryptoWaitReady } from '@polkadot/util-crypto';
+import type { KeyringPair, KeyringPair$Json } from '@polkadot/keyring/types';
 import { Sails } from 'sails-js';
 import { SailsIdlParser } from 'sails-js-parser';
 import pino from 'pino';
@@ -40,7 +44,6 @@ import { CHAT_TEMPLATES, MENTION_POOL, pickMentions, pickTemplate, renderBody } 
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
-const CHAT_POSTER_SEED = required('CHAT_POSTER_SEED');
 const BOUNTYMESH_PROGRAM_ID = required('BOUNTYMESH_PROGRAM_ID') as `0x${string}`;
 const VARA_AGENTS_PROGRAM_ID = (process.env.VARA_AGENTS_PROGRAM_ID
   ?? '0x19f27f4c906a5ac230be82d907850d44c7a7fff1b4c6903f62e78e09e0b353f3') as `0x${string}`;
@@ -61,7 +64,22 @@ function required(name: string): string {
 
 function loadKeypair(): KeyringPair {
   const kr = new Keyring({ type: 'sr25519' });
-  return kr.addFromUri(CHAT_POSTER_SEED);
+  const keystoreB64 = process.env.CHAT_POSTER_KEYSTORE_BASE64;
+  if (keystoreB64) {
+    const json = JSON.parse(Buffer.from(keystoreB64, 'base64').toString('utf-8')) as KeyringPair$Json;
+    const pair = kr.addFromJson(json);
+    pair.unlock('');
+    log.info({ source: 'keystore-base64', address: pair.address }, 'keypair loaded');
+    return pair;
+  }
+  const seed = process.env.CHAT_POSTER_SEED;
+  if (!seed) {
+    log.error('one of CHAT_POSTER_KEYSTORE_BASE64 or CHAT_POSTER_SEED must be set');
+    process.exit(1);
+  }
+  const pair = kr.addFromUri(seed);
+  log.info({ source: 'seed-uri', address: pair.address }, 'keypair loaded');
+  return pair;
 }
 
 async function loadAgentsIdl(): Promise<string> {
@@ -165,9 +183,10 @@ function sleep(ms: number): Promise<void> {
 async function main(): Promise<void> {
   log.info({ rpcUrl: RPC_URL, hub: VARA_AGENTS_PROGRAM_ID, intervalMs: CHAT_INTERVAL_MS }, 'chat-poster starting');
 
+  await cryptoWaitReady();
   const kp = loadKeypair();
   const operatorHex = `0x${Buffer.from(kp.publicKey).toString('hex')}` as `0x${string}`;
-  log.info({ operator: operatorHex }, 'keypair loaded');
+  log.info({ operator: operatorHex }, 'operator pubkey resolved');
 
   const api = await GearApi.create({ providerAddress: RPC_URL });
   await api.isReady;
