@@ -111,6 +111,7 @@ export async function boot(opts: BootOptions = {}): Promise<BootHandle> {
 
     const fsm = new MainFsm({
       client,
+      api,
       adapter,
       workerState,
       dedup,

@@ -1,0 +1,17 @@
+{
+  "handle": "varacore-app",
+  "programId": "0xe1f8f2999a352f217292c9ddd85211dcda23923daa1b95ecb21ff20bf4d8d078",
+  "owner": "0xea08de939ba8378c9896342b081ccf715856f6f613301e9fd1357f4f9efadb4a",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/dmustapha/vara-a2a/main/varacore/varacore.idl",
+  "tags": [
+    "oracle",
+    "price-feed",
+    "reputation",
+    "registry",
+    "infrastructure",
+    "trust"
+  ],
+  "fetched": true,
+  "idlBytes": 2522
+}

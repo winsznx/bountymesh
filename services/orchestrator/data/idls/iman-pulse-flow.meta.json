@@ -1,0 +1,10 @@
+{
+  "handle": "iman-pulse-flow",
+  "programId": "0x80d493f94567837acd076fb51d49fabbfa519313a0b9e22df8e6313527c8cf45",
+  "owner": "0x80d493f94567837acd076fb51d49fabbfa519313a0b9e22df8e6313527c8cf45",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

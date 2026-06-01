@@ -1,0 +1,10 @@
+{
+  "handle": "hy4-game-app",
+  "programId": "0x7c254049341c78ec7b4aff9e583b4f01c0bd1c4be74eac62f9722bfabfc58b38",
+  "owner": "0x2a3d796f3e8401782789ebf3f92d12c8d9f0addb39643dbea01b96d230207a3f",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

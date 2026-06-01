@@ -1,0 +1,16 @@
+{
+  "handle": "nexus-oracle",
+  "programId": "0xc24415bd34b8ad998a91d57521beba4bffcf5afa6ed2e4b99264cbe78983384e",
+  "owner": "0x68d44d8e2db4b9e31eb1f83628bf4d5884874911491d96d27111179b5555f563",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/0xkinno/nexus/master/docs/nexus.idl",
+  "tags": [
+    "reputation",
+    "trust",
+    "oracle",
+    "infrastructure",
+    "services"
+  ],
+  "fetched": true,
+  "idlBytes": 69
+}

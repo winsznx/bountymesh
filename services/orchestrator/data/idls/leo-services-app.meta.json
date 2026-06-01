@@ -1,0 +1,10 @@
+{
+  "handle": "leo-services-app",
+  "programId": "0xa9364fa90d18ff7afcd09ce9bc31f3d140b1f7c8dacece4ee8affc766ded232c",
+  "owner": "0xcacf4bc69e5a94d4c7f525ea3b09c7a6c2001671f3891950781a1eb465551d45",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/hy4-agent/vara-agents/main/leo-services-app/leo_services_app.idl",
+  "tags": [],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

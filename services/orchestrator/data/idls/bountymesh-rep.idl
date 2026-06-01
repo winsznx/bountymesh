@@ -1,0 +1,42 @@
+type ReputationScore = struct {
+  bounties_completed: u32,
+  bounties_rejected: u32,
+  total_earned: u128,
+};
+
+constructor {
+  /// Initialize the bountymesh-rep registry.
+  /// 
+  /// Open-caller model: no admin, no owner. Anyone may call RecordCompletion
+  /// or RecordRejection. Legitimacy of any single entry comes from the
+  /// off-chain caller's program_id (recorder field on each event) — consumers
+  /// of the registry verify the recorder before relying on the record.
+  New : ();
+};
+
+service RepService {
+  /// Record a completed bounty. Idempotent on (worker, bounty_id).
+  RecordCompletion : (worker: actor_id, bounty_id: u64, reward: u128) -> null;
+  /// Record a rejected bounty. Idempotent on (worker, bounty_id).
+  RecordRejection : (worker: actor_id, bounty_id: u64) -> null;
+  /// Read a worker's aggregate score. Returns the zero-valued default for
+  /// workers with no recorded bounties.
+  query GetScore : (worker: actor_id) -> ReputationScore;
+
+  events {
+    CompletionRecorded: struct {
+      worker: actor_id,
+      bounty_id: u64,
+      reward: u128,
+      /// `msg::source()` of the recording call — lets consumers attribute
+      /// the record to a known issuer (e.g. the BountyMesh worker daemon).
+      recorder: actor_id,
+    };
+    RejectionRecorded: struct {
+      worker: actor_id,
+      bounty_id: u64,
+      recorder: actor_id,
+    };
+  }
+};
+

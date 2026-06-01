@@ -1,0 +1,140 @@
+type WorkflowInput = struct {
+  name: str,
+  description: str,
+  trigger: Trigger,
+  steps: vec Step,
+};
+
+type WorkflowPatch = struct {
+  name: opt str,
+  description: opt str,
+  trigger: opt Trigger,
+  steps: opt vec Step,
+  active: opt bool,
+};
+
+type WorkflowSummary = struct {
+  id: u64,
+  name: str,
+  trigger: Trigger,
+  active: bool,
+  run_count: u64,
+  last_run_block: u32,
+  next_run_block: u32,
+};
+
+type Workflow = struct {
+  id: u64,
+  owner: actor_id,
+  name: str,
+  description: str,
+  trigger: Trigger,
+  steps: vec Step,
+  active: bool,
+  created_block: u32,
+  last_run_block: u32,
+  run_count: u64,
+  next_run_block: u32,
+};
+
+type Trigger = enum {
+  BlockInterval: struct { every_n_blocks: u32 },
+  PriceThreshold: struct { symbol: str, above_usd: opt u64, below_usd: opt u64 },
+  GasBelow: struct { threshold_micro: u64 },
+  ManualCall: struct { authorized: opt actor_id },
+  OnBridgeUpdate: null,
+};
+
+type Step = struct {
+  step_type: StepType,
+  gas_limit: u64,
+  timeout_blocks: u32,
+  on_success: opt Step,
+  on_failure: opt Step,
+  on_timeout: opt Step,
+};
+
+type StepType = enum {
+  QueryBridge: struct { query: QueryRequest },
+  CallProgram: struct { pid: actor_id, method: str, args: vec u8 },
+  PostBoard: struct { body_template: str },
+  PostChat: struct { body_template: str, mentions: vec str },
+  ConditionalBranch: struct { condition: Condition, if_true: Step, if_false: opt Step },
+  WakePulse: null,
+  Done: null,
+};
+
+type Condition = enum {
+  PriceAbove: struct { symbol: str, threshold_micro: u64 },
+  PriceBelow: struct { symbol: str, threshold_micro: u64 },
+  GasBelow: struct { threshold_micro: u64 },
+  BlockModulo: struct { n: u32 },
+  Always: null,
+};
+
+type ExecutionStatus = enum {
+  Running: null,
+  Completed: null,
+  Failed: null,
+  TimedOut: null,
+};
+
+type FlowStats = struct {
+  workflow_count: u64,
+  execution_count: u64,
+  broadcast_count: u64,
+  active_workflows: u64,
+};
+
+type TriggerInputDataEntry = struct {
+  key: str,
+  value: str,
+};
+
+type TriggerInput = struct {
+  data: vec TriggerInputDataEntry,
+};
+
+type TemplateType = enum {
+  PriceAlert: null,
+  MarketSummaryBoard: null,
+  GasAwareExecution: null,
+  PulseScheduler: null,
+  OnBridgeUpdate: null,
+  Custom: null,
+};
+
+type TemplateParams = struct {
+  interval: opt u32,
+  symbol: opt str,
+  threshold_micro: opt u64,
+  body_template: opt str,
+};
+
+type QueryRequest = struct {
+  query_type: str,
+  symbol: opt str,
+  keys: opt vec str,
+};
+
+constructor {
+  New : (bridge_pid: actor_id, pulse_pid: actor_id, network_pid: actor_id);
+};
+
+service VaraFlow {
+  RegisterWorkflow : (input: WorkflowInput) -> u64;
+  UpdateWorkflow : (id: u64, patch: WorkflowPatch) -> null;
+  DeleteWorkflow : (id: u64) -> null;
+  PauseWorkflow : (id: u64) -> null;
+  ResumeWorkflow : (id: u64) -> null;
+  GetWorkflow : (id: u64) -> opt Workflow;
+  ListWorkflows : (owner: opt actor_id, active_only: bool) -> vec WorkflowSummary;
+  TriggerWorkflow : (id: u64, input: opt TriggerInput) -> null;
+  GetExecutionStatus : (exec_id: u64) -> opt ExecutionStatus;
+  GetStats : () -> FlowStats;
+  Tick : () -> null;
+  StartTick : () -> null;
+  UseTemplate : (template: TemplateType, params: TemplateParams) -> u64;
+  SetBridge : (bridge_pid: actor_id) -> null;
+  SetPulse : (pulse_pid: actor_id) -> null;
+};

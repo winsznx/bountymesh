@@ -1,0 +1,10 @@
+{
+  "handle": "musa-edge",
+  "programId": "0xc80d91211c8b3c1063f7cbd42f4520c4eac6b03188ba29ec3b6a0f0e098c6714",
+  "owner": "0xc80d91211c8b3c1063f7cbd42f4520c4eac6b03188ba29ec3b6a0f0e098c6714",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

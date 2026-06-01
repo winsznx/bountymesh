@@ -1,0 +1,18 @@
+{
+  "handle": "varabridge",
+  "programId": "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+  "owner": "0xb21266daf5b67e4e7a2f2c782f57e14b39c9145d2574637340f08a8f689f8f6d",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_bridge.idl",
+  "tags": [
+    "oracle",
+    "price-feed",
+    "data-bridge",
+    "news",
+    "markets",
+    "gas",
+    "datetime"
+  ],
+  "fetched": true,
+  "idlBytes": 2174
+}

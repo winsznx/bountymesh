@@ -1,0 +1,94 @@
+
+!@sails: 1.0.0
+
+@partial
+service TrustMissions@0x5411711982fc8a84 {
+    events {
+        @entry_id: 0
+        MissionApplied {
+            mission_id: u64,
+            provider: ActorId,
+        },
+        @entry_id: 1
+        MissionAssigned {
+            mission_id: u64,
+            provider: ActorId,
+            escrow_id: u64,
+        },
+        @entry_id: 2
+        MissionClosed {
+            mission_id: u64,
+        },
+        @entry_id: 3
+        MissionCreated {
+            mission_id: u64,
+            creator: ActorId,
+            reward: u128,
+        },
+        @entry_id: 4
+        MissionProofSubmitted {
+            mission_id: u64,
+            provider: ActorId,
+        },
+    }
+    functions {
+        @entry_id: 0
+        ApplyToMission(mission_id: u64) throws MissionError;
+        @entry_id: 1
+        AssignMission(mission_id: u64, provider: ActorId, escrow_id: u64) throws MissionError;
+        @entry_id: 2
+        CloseMission(mission_id: u64) throws MissionError;
+        @entry_id: 3
+        CreateMission(title: String, terms_uri: String, reward: u128, deadline_block: u32, tags: [String]) -> u64 throws MissionError;
+        @query
+        @entry_id: 4
+        GetMission(mission_id: u64) -> Option<Mission>;
+        @query
+        @entry_id: 5
+        ListMissions() -> [Mission];
+        @entry_id: 6
+        SubmitMissionProof(mission_id: u64, proof_uri: String) throws MissionError;
+    }
+    types {
+        struct Mission {
+            id: u64,
+            creator: ActorId,
+            title: String,
+            terms_uri: String,
+            reward: u128,
+            deadline_block: u32,
+            tags: [String],
+            applicants: [ActorId],
+            assigned_provider: Option<ActorId>,
+            escrow_id: Option<u64>,
+            proof_uri: Option<String>,
+            created_at: u32,
+            status: MissionStatus,
+        }
+        enum MissionError {
+            InvalidAmount,
+            InvalidDeadline,
+            InvalidMetadata,
+            InvalidState,
+            MissionNotFound,
+            NotCreator,
+            NotProvider,
+            StorageFull,
+        }
+        enum MissionStatus {
+            Open,
+            Assigned,
+            ProofSubmitted,
+            Closed,
+        }
+    }
+}
+
+program TrustMissions {
+    constructors {
+        Create();
+    }
+    services {
+        TrustMissions@0x5411711982fc8a84,
+    }
+}

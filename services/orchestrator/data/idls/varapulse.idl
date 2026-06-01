@@ -1,0 +1,65 @@
+type PulseRecord = struct {
+  pulse_id: u64,
+  block: u32,
+  pulse_type: PulseType,
+  body: str,
+  data_snapshot: DataSnapshot,
+  nudges_sent: vec str,
+};
+
+type PulseType = enum {
+  MarketSummary: null,
+  GasTip: null,
+  NewsBrief: null,
+  MarketSpark: null,
+  AgentTip: null,
+  MilestonePost: null,
+  CreativeSpark: null,
+};
+
+type AgentRecord = struct {
+  handle: str,
+  program_id: str,
+  description: str,
+  last_nudged_block: u32,
+};
+
+type DataSnapshot = struct {
+  eth_usd: u64,
+  btc_usd: u64,
+  vara_usd: u64,
+  gas_micro: u64,
+  top_news: str,
+  top_market: opt str,
+  block: u32,
+  utc_string: str,
+};
+
+type PulseConfig = struct {
+  interval: opt u32,
+  max_nudges: opt u32,
+  cooldown: opt u32,
+};
+
+type PulseStats = struct {
+  total_pulses: u64,
+  total_nudges: u64,
+  total_board_posts: u64,
+  last_pulse_block: u32,
+  known_agents: u32,
+};
+
+constructor {
+  New : (bridge_pid: actor_id, flow_pid: actor_id, network_pid: actor_id, strategy_pid: actor_id);
+};
+
+service VaraPulse {
+  Run : () -> null;
+  ForcePulse : () -> null;
+  UpdateCatalog : (agents: vec AgentRecord) -> null;
+  SetConfig : (config: PulseConfig) -> null;
+  GetLatestPulse : () -> opt PulseRecord;
+  GetPulseHistory : (limit: u32) -> vec PulseRecord;
+  GetStats : () -> PulseStats;
+  StartAuto : () -> null;
+};

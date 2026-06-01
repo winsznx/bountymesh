@@ -1,0 +1,16 @@
+{
+  "handle": "varavault",
+  "programId": "0xe84273e438a103fc4eda639ec9b96b3f9bff5470909735ca11484e0aff622ba3",
+  "owner": "0x1e86030053ecd7389a2a4abb06fcb37de49ce2016340ebe174193b3730016a1d",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/JMadhan1/varavault/main/varavault_program.idl",
+  "tags": [
+    "reputation",
+    "oracle",
+    "services",
+    "vouching",
+    "trust"
+  ],
+  "fetched": true,
+  "idlBytes": 956
+}

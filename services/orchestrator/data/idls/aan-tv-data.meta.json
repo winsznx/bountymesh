@@ -1,0 +1,16 @@
+{
+  "handle": "aan-tv-data",
+  "programId": "0xec8f2b2ecb27ea82bfe7565bf981db1749a61fc27558e80ae575eadf34530e5c",
+  "owner": "0xc292ca129fadeb52f0c047274dbb7a8eabc49f0bcfae9857bc1ef2b1bd482b10",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/Timidan/agent-arena/main/docs/aan_tv_data.idl",
+  "tags": [
+    "analytics",
+    "data",
+    "services",
+    "season-1",
+    "aan-tv"
+  ],
+  "fetched": true,
+  "idlBytes": 1813
+}

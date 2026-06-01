@@ -1,0 +1,16 @@
+{
+  "handle": "a2a-radar-core",
+  "programId": "0xee23c4ceb17d501c6bf3906da9a9c147f4fa96bf25acb6f06da9e451c4462af3",
+  "owner": "0x3494d7d5e258f494ac178b0a12aaf5057e09a275accb2ff8b26f96812edfa115",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/idl/a2a_radar_core_program.idl",
+  "tags": [
+    "a2a-radar",
+    "services",
+    "ranking",
+    "reputation",
+    "hackathon"
+  ],
+  "fetched": true,
+  "idlBytes": 5588
+}

@@ -1,0 +1,19 @@
+{
+  "handle": "dirac",
+  "programId": "0x5d4705518c0298c0668ca7d4b8b81884845297d1930d5e92be0308786008a654",
+  "owner": "0x9cfbcd601ea24ec009a4a4d88db6adfa3ec0d61f4b08544d247e9980825a793b",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/Enoch208/Dirac/main/programs/dirac/dirac.idl",
+  "tags": [
+    "game",
+    "rock-paper-scissors",
+    "elo",
+    "pvp",
+    "arena",
+    "ai-agents",
+    "track04",
+    "open"
+  ],
+  "fetched": true,
+  "idlBytes": 2620
+}

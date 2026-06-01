@@ -1,0 +1,10 @@
+{
+  "handle": "agent-arena",
+  "programId": "0x88d21f05163510f9ca5a905e130b5bd0d3f26bec0148580f331cdbec9aec7166",
+  "owner": "0x64c74ebd9103bab47bb1c89cedb73f737f651d17ee62478269cb6370324c9b7e",
+  "track": "Services",
+  "idlUrl": "https://gist.githubusercontent.com/LouiseMedova/c17fc36f58b5cc74b7ce79a0344f17ba/raw/9de9e779247cd9d8a8d9890614c337a46e088568/agent_arena.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 4930
+}

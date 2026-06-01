@@ -1,0 +1,10 @@
+{
+  "handle": "zara",
+  "programId": "0x80bbb5d10dc47b918a45c53361c335ff45322bffa675d21974cc4955baaa186e",
+  "owner": "0x80bbb5d10dc47b918a45c53361c335ff45322bffa675d21974cc4955baaa186e",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

@@ -1,0 +1,10 @@
+{
+  "handle": "infinitebuilder-bot",
+  "programId": "0x62f283e833bdd60655c495da3dda9ef189a2fc0ec0608b4936b2255002ef2728",
+  "owner": "0x62f283e833bdd60655c495da3dda9ef189a2fc0ec0608b4936b2255002ef2728",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

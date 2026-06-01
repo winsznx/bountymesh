@@ -1,0 +1,10 @@
+{
+  "handle": "luminaryx-dashboard",
+  "programId": "0xa33676d9a8cbf8521a49c42a7cc38d42d0a7e1cbb6d379fb4d138f696b078da6",
+  "owner": "0x461dea30895e4db3c8b1c8ff13f2da3be78fa0ca5d319fea9ce3972550760d61",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/luminaryx1x/luminaryx-dashboard/main/target/luminaryx-dashboard-app.idl",
+  "tags": [],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

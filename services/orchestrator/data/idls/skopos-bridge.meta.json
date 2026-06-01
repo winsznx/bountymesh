@@ -1,0 +1,10 @@
+{
+  "handle": "skopos-bridge",
+  "programId": "0x422d323915e5d3ac00a41138da14d6a13bccf753407bf6fc0079ff746ae5ce8b",
+  "owner": "0x06ffb9d3f896dc7b627a0d07def99da77700cc29163e748c2440334a673a887d",
+  "track": "Services",
+  "idlUrl": "https://gist.githubusercontent.com/Svector-anu/74c9da0bc30c3af30f441071dc9e0ec9/raw/0a6d36c2e70f830c661889e59ee2847943bce107/skopos_oracle.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 456
+}

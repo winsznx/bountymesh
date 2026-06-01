@@ -12,6 +12,7 @@ FROM node:24-alpine AS deps
 WORKDIR /app
 
 COPY packages/sdk ./packages/sdk
+COPY services/orchestrator ./services/orchestrator
 
 # Build-context guard: fails fast with a clear message if Railway's dashboard
 # Root Directory drifts off `/` (repo root). Without this, the COPY above
@@ -19,8 +20,16 @@ COPY packages/sdk ./packages/sdk
 # later with an opaque "cannot resolve @bountymesh/sdk" error.
 RUN test -f /app/packages/sdk/package.json \
   || (echo "ERROR: packages/sdk missing — Railway service Root Directory must be '/' (repo root), not a subdir." && exit 1)
+RUN test -f /app/services/orchestrator/package.json \
+  || (echo "ERROR: services/orchestrator missing — Railway service Root Directory must be '/' (repo root), not a subdir." && exit 1)
 
-COPY services/worker/package.json services/worker/package-lock.json ./services/worker/
+# Build the orchestrator's dist/ ahead of npm install --install-links so the
+# file: link in services/worker/package.json resolves to a directory with the
+# compiled JS + .d.ts the worker imports.
+WORKDIR /app/services/orchestrator
+RUN npm install --legacy-peer-deps && npm run build
+
+COPY services/worker/package.json services/worker/package-lock.json /app/services/worker/
 
 WORKDIR /app/services/worker
 RUN npm install --legacy-peer-deps --install-links

@@ -1,0 +1,10 @@
+{
+  "handle": "aan-tv-link",
+  "programId": "0x9b54251f0c4e81e62bbeecd3ce7b3bc9a96730255fb0f137bb1d5ae8c5c756fe",
+  "owner": "0xc292ca129fadeb52f0c047274dbb7a8eabc49f0bcfae9857bc1ef2b1bd482b10",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/Timidan/agent-arena/main/docs/aan_tv_relay.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 1698
+}

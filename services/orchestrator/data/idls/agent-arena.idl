@@ -1,0 +1,166 @@
+
+!@sails: 1.0.0-beta.3
+
+service AgentArena@0x1ad17e04392a44fa {
+    events {
+        AppRegistered {
+            app: ActorId,
+            handle: String,
+            kind: AppKind,
+        },
+        QuestCompleted {
+            quest_id: u64,
+            result_id: u64,
+            player: ActorId,
+        },
+        QuestCreated {
+            quest_id: u64,
+            season_id: u64,
+            game: ActorId,
+        },
+        ResultRecorded {
+            result_id: u64,
+            season_id: u64,
+            player: ActorId,
+            points_awarded: u32,
+        },
+        SeasonClosed {
+            season_id: u64,
+        },
+        SeasonStarted {
+            season_id: u64,
+            organizer: ActorId,
+        },
+    }
+    functions {
+        @query
+        ActiveSeasonId() -> Option<u64>;
+        CloseSeason(season_id: u64) throws ArenaError;
+        CreateQuest(season_id: u64, title: String, description: String, game: ActorId, reward_app: Option<ActorId>, proof_uri: String, points: u32) -> u64 throws ArenaError;
+        @query
+        GetApp(app: ActorId) -> Option<ArenaApp>;
+        @query
+        GetQuest(quest_id: u64) -> Option<Quest>;
+        @query
+        GetResult(result_id: u64) -> Option<ResultProof>;
+        @query
+        GetSeason(season_id: u64) -> Option<Season>;
+        @query
+        Leaderboard(season_id: u64, limit: u32) -> [PlayerScore];
+        @query
+        ListPlayerResults(player: ActorId, limit: u32) -> [ResultProof];
+        @query
+        ListRecentResults(limit: u32) -> [ResultProof];
+        @query
+        ListSeasonQuests(season_id: u64, limit: u32) -> [Quest];
+        @query
+        ListSeasonResults(season_id: u64, limit: u32) -> [ResultProof];
+        RecordMatchResult(season_id: u64, quest_id: Option<u64>, game: ActorId, match_id: u64, player: ActorId, opponent: Option<ActorId>, winner: Option<ActorId>, kind: ResultKind, proof_uri: String, proof_hash: String, note: String) -> u64 throws ArenaError;
+        RecordQuestCompletion(quest_id: u64, match_id: u64, player: ActorId, proof_uri: String, proof_hash: String, note: String) -> u64 throws ArenaError;
+        RegisterApp(app: ActorId, handle: String, kind: AppKind, metadata_uri: String) throws ArenaError;
+        StartSeason(name: String, description: String, ends_at_block: u32) -> u64 throws ArenaError;
+    }
+    types {
+        enum AppKind {
+            Game,
+            Bounty,
+            Oracle,
+            Portfolio,
+            Workflow,
+            Other,
+        }
+        struct ArenaApp {
+            app: ActorId,
+            owner: ActorId,
+            handle: String,
+            kind: AppKind,
+            metadata_uri: String,
+            registered_at_block: u32,
+        }
+        enum ArenaError {
+            EmptyField,
+            FieldTooLong,
+            InvalidBlockRange,
+            InvalidPoints,
+            AppAlreadyRegistered,
+            AppNotRegistered,
+            SeasonNotFound,
+            SeasonClosed,
+            QuestNotFound,
+            QuestClosed,
+            QuestSeasonMismatch,
+            CounterOverflow,
+        }
+        struct PlayerScore {
+            season_id: u64,
+            player: ActorId,
+            points: u32,
+            wins: u32,
+            draws: u32,
+            timeouts: u32,
+            bounty_completions: u32,
+            proofs: u32,
+            updated_at_block: u32,
+        }
+        struct Quest {
+            id: u64,
+            season_id: u64,
+            creator: ActorId,
+            title: String,
+            description: String,
+            game: ActorId,
+            reward_app: Option<ActorId>,
+            proof_uri: String,
+            points: u32,
+            active: bool,
+            created_at_block: u32,
+            completion_count: u32,
+        }
+        enum ResultKind {
+            Accepted,
+            Played,
+            Won,
+            Draw,
+            TimedOut,
+            BountyCompleted,
+        }
+        struct ResultProof {
+            id: u64,
+            season_id: u64,
+            quest_id: Option<u64>,
+            game: ActorId,
+            match_id: u64,
+            reporter: ActorId,
+            player: ActorId,
+            opponent: Option<ActorId>,
+            winner: Option<ActorId>,
+            kind: ResultKind,
+            points_awarded: u32,
+            proof_uri: String,
+            proof_hash: String,
+            note: String,
+            created_at_block: u32,
+            created_at_ms: u64,
+        }
+        struct Season {
+            id: u64,
+            organizer: ActorId,
+            name: String,
+            description: String,
+            starts_at_block: u32,
+            ends_at_block: u32,
+            is_open: bool,
+            quest_count: u32,
+            result_count: u32,
+        }
+    }
+}
+
+program AgentArena {
+    constructors {
+        Create();
+    }
+    services {
+        AgentArena@0x1ad17e04392a44fa,
+    }
+}

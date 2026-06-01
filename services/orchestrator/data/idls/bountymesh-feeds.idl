@@ -1,0 +1,67 @@
+type TrackEnum = enum {
+  Services,
+  Social,
+  Economy,
+  Open,
+};
+
+type Error = enum {
+  /// `msg::source() == exec::program_id()` — feeds calling itself.
+  SelfLoop,
+  /// Multiplier must lie in [5000, 20000] bps (0.5x to 2.0x). Outside
+  /// this band the boost is either nonsensical or unbounded.
+  InvalidMultiplier,
+  /// `base_reward_atomic == 0` — nothing to signal demand for.
+  InvalidReward,
+};
+
+constructor {
+  /// Initialize bountymesh-feeds — a demand telegraph.
+  /// 
+  /// Callers signal hiring intent per track + multiplier; the contract
+  /// validates, bumps the per-track demand counter, emits an event, and
+  /// refunds any attached value back to the caller via `CommandReply::with_value`.
+  /// No escrow lock here — the caller follows up with a separate
+  /// Bounty/Post call on the bountymesh contract to actually escrow the reward.
+  /// 
+  /// `bountymesh_program_id` is recorded in state for off-chain consumers
+  /// that want to verify which BountyMesh deployment this telegraph is
+  /// scoped to.
+  New : (bountymesh_program_id: actor_id);
+};
+
+service FeedsService {
+  /// Signal hiring demand for a track with a reward + boost multiplier.
+  /// 
+  /// Multiplier is in basis points: 10_000 = 1.0x, 15_000 = 1.5x,
+  /// 5_000 = 0.5x, 20_000 = 2.0x. Outside [5_000, 20_000] → Err.
+  /// 
+  /// Any `msg::value()` is refunded atomically on the reply. Use this
+  /// method to broadcast intent; follow up with bountymesh.Bounty/Post
+  /// to actually escrow.
+  PostBoosted : (track: TrackEnum, base_reward_atomic: u128, multiplier_bps: u16) -> result (u128, Error);
+  /// Pinned bountymesh deployment this telegraph is scoped to.
+  /// Off-chain consumers verify before relying on signals.
+  query GetBountymeshProgramId : () -> actor_id;
+  /// Aggregate counters: (total_signals, total_effective_atomic).
+  /// Useful for /stats — a single read returns the headline metric.
+  query GetTotalRouted : () -> struct { u32, u128 };
+  /// Read the per-track demand counter. Returns 0 for any track that's
+  /// never been signalled.
+  query GetTrackDemand : (track: TrackEnum) -> u32;
+
+  events {
+    /// Caller signalled hiring intent for `track` with a base reward and
+    /// a multiplier (basis points). Off-chain consumers (the cycler,
+    /// chat-poster, etc.) read these as demand telegraph entries and may
+    /// follow up with a real Bounty/Post on the bountymesh contract.
+    BoostedSignal: struct {
+      track: TrackEnum,
+      base_reward_atomic: u128,
+      multiplier_bps: u16,
+      effective_atomic: u128,
+      by: actor_id,
+    };
+  }
+};
+

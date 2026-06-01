@@ -1,0 +1,274 @@
+type RadarError = enum {
+  NotAuthorized,
+  NotFound,
+  InvalidPayment,
+  SubscriptionExpired,
+  Duplicate,
+  BadInput,
+  RateLimited,
+};
+
+type SignalKind = enum {
+  IncomingCall,
+  OutgoingCall,
+  Payment,
+  BoardPost,
+  ChatPost,
+  Registration,
+  IntegrationPact,
+  ReputationAttestation,
+  DemandRequest,
+  ProviderResponse,
+};
+
+type ServiceCategory = enum {
+  Oracle,
+  Prediction,
+  Casino,
+  Analytics,
+  Social,
+  Marketplace,
+  Reputation,
+  Dao,
+  Registry,
+  Tooling,
+  Other: str,
+};
+
+type Money = struct {
+  amount: u128,
+  asset: str,
+};
+
+type PremiumSignal = struct {
+  id: u64,
+  title: str,
+  category: ServiceCategory,
+  confidence: u32,
+  price: Money,
+  summary: str,
+};
+
+type AgentProfile = struct {
+  agent: actor_id,
+  program: opt actor_id,
+  handle: str,
+  categories: vec ServiceCategory,
+  description: str,
+  endpoint_hint: str,
+  verified: bool,
+  last_seen_ms: u64,
+};
+
+type EcosystemReport = struct {
+  title: str,
+  summary: str,
+  top_agents: vec LeaderboardEntry,
+  hot_clusters: vec DemandCluster,
+  opportunities: vec Opportunity,
+  created_at_ms: u64,
+};
+
+type LeaderboardEntry = struct {
+  agent: actor_id,
+  handle: str,
+  rank: u32,
+  score: u32,
+  incoming_calls: u32,
+  outgoing_calls: u32,
+  unique_counterparties: u32,
+  repeat_counterparties: u32,
+  payment_volume: u128,
+  board_activity: u32,
+  integration_depth: u32,
+  sustained_activity: u32,
+};
+
+type DemandCluster = struct {
+  sector: u32,
+  label: str,
+  category: ServiceCategory,
+  demand_score: u32,
+  supply_score: u32,
+  growth_bps: i32,
+  sample_size: u32,
+  updated_at_ms: u64,
+};
+
+type Opportunity = struct {
+  id: u64,
+  title: str,
+  category: ServiceCategory,
+  demand_score: u32,
+  suggested_providers: vec actor_id,
+  expected_value: opt Money,
+  expires_at_ms: u64,
+};
+
+type ProviderQuery = struct {
+  requester: actor_id,
+  category: ServiceCategory,
+  need: str,
+  max_fee: opt Money,
+  min_reputation: u32,
+};
+
+type ProviderMatch = struct {
+  provider: actor_id,
+  handle: str,
+  category: ServiceCategory,
+  match_score: u32,
+  reputation_score: u32,
+  estimated_fee: opt Money,
+  reason: str,
+};
+
+type IntegrationSuggestion = struct {
+  requester: actor_id,
+  provider: actor_id,
+  category: ServiceCategory,
+  confidence: u32,
+  reason: str,
+};
+
+type ReputationScore = struct {
+  agent: actor_id,
+  trust_score: u32,
+  reliability_score: u32,
+  spam_risk: u32,
+  successful_interactions: u32,
+  unique_counterparties: u32,
+  updated_at_ms: u64,
+};
+
+type InteractionSignal = struct {
+  id: u64,
+  kind: SignalKind,
+  source: actor_id,
+  target: opt actor_id,
+  category: ServiceCategory,
+  value: opt Money,
+  weight: u32,
+  metadata: str,
+  observed_at_ms: u64,
+};
+
+type Subscription = struct {
+  id: u64,
+  subscriber: actor_id,
+  tier: SubscriptionTier,
+  topics: vec FeedTopic,
+  price_per_period: Money,
+  active_until_ms: u64,
+};
+
+type SubscriptionTier = enum {
+  Free,
+  Pulse,
+  Pro,
+  Sponsor,
+};
+
+type FeedTopic = enum {
+  EcosystemPulse,
+  DemandSpikes,
+  ProviderDiscovery,
+  Leaderboards,
+  ReputationRisk,
+  IntegrationOpportunities,
+  SectorHeatmaps,
+};
+
+type ReferralRoute = struct {
+  id: u64,
+  requester: actor_id,
+  provider: actor_id,
+  category: ServiceCategory,
+  referral_fee_bps: u16,
+  status: str,
+};
+
+type Priority = enum {
+  Low,
+  Normal,
+  High,
+  Critical,
+};
+
+type RadarAgentKind = enum {
+  Core,
+  Broadcast,
+  Market,
+};
+
+type MarketProduct = struct {
+  id: u64,
+  name: str,
+  topic: FeedTopic,
+  price: Money,
+  active: bool,
+};
+
+constructor {
+  New : ();
+};
+
+service Core {
+  ConfigureAgents : (broadcast_agent: actor_id, market_agent: actor_id) -> result (null, RadarError);
+  IngestEvent : (kind: SignalKind, target: opt actor_id, category: ServiceCategory, value: opt Money, weight: u32, metadata: str) -> result (null, RadarError);
+  PremiumSignalsForMarket : (limit: u32) -> result (vec PremiumSignal, RadarError);
+  RegisterProfile : (profile: AgentProfile) -> result (null, RadarError);
+  ReportForBroadcast : () -> result (EcosystemReport, RadarError);
+  query CachedCounts : () -> struct { u32, u32, u32, u32 };
+  query DemandSignals : (limit: u32) -> vec DemandCluster;
+  query DiscoverProviders : (query: ProviderQuery) -> vec ProviderMatch;
+  query EcosystemReport : () -> EcosystemReport;
+  query IntegrationSuggestions : (requester: actor_id, limit: u32) -> vec IntegrationSuggestion;
+  query Ranking : (limit: u32) -> vec LeaderboardEntry;
+  query ReputationScore : (agent: actor_id) -> opt ReputationScore;
+
+  events {
+    AgentObserved: AgentProfile;
+    SignalIngested: InteractionSignal;
+    DemandClusterUpdated: DemandCluster;
+    ReputationUpdated: ReputationScore;
+    ProviderMatched: struct {
+      query: ProviderQuery,
+      matches: vec ProviderMatch,
+    };
+    OpportunityPublished: Opportunity;
+    SubscriptionOpened: Subscription;
+    PaymentCaptured: struct {
+      payer: actor_id,
+      amount: Money,
+      purpose: str,
+    };
+    ReferralOpened: ReferralRoute;
+    LeaderboardUpdated: struct {
+      board: str,
+      entries: vec LeaderboardEntry,
+    };
+    EcosystemReportPublished: EcosystemReport;
+    IntegrationRecommended: struct {
+      requester: actor_id,
+      provider: actor_id,
+      reason: str,
+    };
+    BoardMessageQueued: struct {
+      topic: FeedTopic,
+      body: str,
+    };
+    ChatMessageQueued: struct {
+      priority: Priority,
+      body: str,
+    };
+    CrossAgentCallQueued: struct {
+      from: RadarAgentKind,
+      to: RadarAgentKind,
+      purpose: str,
+    };
+    PremiumSignalPackaged: PremiumSignal;
+    MarketProductCreated: MarketProduct;
+  }
+};
+

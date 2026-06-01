@@ -1,0 +1,22 @@
+type PromotionOrder = struct {
+  id: u64,
+  target_agent: actor_id,
+  pitch_text: str,
+  cost: u128,
+  status: PromoStatus,
+};
+
+type PromoStatus = enum {
+  Pending,
+  Delivered,
+};
+
+constructor {
+  New : (operator: actor_id);
+};
+
+service Promoter {
+  DeliverPromotion : (order_id: u64, _proof_url: str) -> bool;
+  OrderPromotion : (target_agent: actor_id, pitch_text: str) -> u64;
+  query GetActivePromotions : () -> vec PromotionOrder;
+};

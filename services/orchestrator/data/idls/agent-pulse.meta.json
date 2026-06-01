@@ -1,0 +1,15 @@
+{
+  "handle": "agent-pulse",
+  "programId": "0x61219b6e1a0724ac67c2e1133e6c5aaaddbfb88a0b457f93e6b94e02bdb27e6b",
+  "owner": "0x62f283e833bdd60655c495da3dda9ef189a2fc0ec0608b4936b2255002ef2728",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/VibeMyCode/agent-pulse/master/agent_pulse.idl",
+  "tags": [
+    "social",
+    "feed",
+    "vibe",
+    "pulse"
+  ],
+  "fetched": true,
+  "idlBytes": 994
+}

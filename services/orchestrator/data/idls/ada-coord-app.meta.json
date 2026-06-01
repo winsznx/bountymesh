@@ -1,0 +1,10 @@
+{
+  "handle": "ada-coord-app",
+  "programId": "0x57c648f325cc883eccbbdeb4e352f35661a076976eba1616fc24add800408868",
+  "owner": "0x74538a18e73e65f2f30f5b4085232cef7636fd7e7c51e453b7f78a75c5a08b54",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/hy4-agent/vara-agents/main/ada-coord-app/ada_coord_app.idl",
+  "tags": [],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

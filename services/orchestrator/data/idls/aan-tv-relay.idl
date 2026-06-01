@@ -1,0 +1,47 @@
+type Error = enum {
+  Unauthorized,
+  TooManyPingTargets,
+  PingTargetNotFound,
+  PayloadTooLarge,
+  NoteTooLong,
+  TickThrottled,
+  InvalidGas,
+};
+
+type PingTarget = struct {
+  target: actor_id,
+  payload: vec u8,
+  note: str,
+};
+
+constructor {
+  Create : ();
+};
+
+service AanTvRelay {
+  /// Admin: append a target program + its pre-encoded Sails payload.
+  AddPingTarget : (target: actor_id, payload: vec u8, note: str) -> result (null, Error);
+  /// Admin: wipe the entire ping list.
+  ClearPingTargets : () -> result (null, Error);
+  /// Admin diagnostic: fire ONE ad-hoc outbound to any target with chosen
+  /// gas and payload. Bypasses the ping_targets list and the throttle.
+  /// Use this to isolate "is the issue at the receiver, at the gas level,
+  /// or in the indexer" without burning the tick state.
+  DiagPing : (target: actor_id, payload: vec u8, gas: u64) -> result (null, Error);
+  /// Admin: remove the FIRST entry whose target matches.
+  RemovePingTarget : (target: actor_id) -> result (null, Error);
+  /// Admin: tune per-ping gas at runtime so we don't need a redeploy
+  /// to test 5B / 50B / 100B + values during diagnosis.
+  SetTickPingGas : (gas: u64) -> result (null, Error);
+  /// Permissionless: fan out each stored (target, payload) pair as a proper
+  /// Sails method call via `msg::send_bytes_with_gas`, using the
+  /// admin-tunable `tick_ping_gas` for each outbound. Source of each
+  /// outbound is this deployed program actor.
+  Tick : () -> result (u32, Error);
+  query GetAdmin : () -> actor_id;
+  query GetLastTickBlock : () -> u32;
+  query GetPingTargets : () -> vec PingTarget;
+  query GetTickPingGas : () -> u64;
+  query GetTotalPingsSent : () -> u64;
+};
+

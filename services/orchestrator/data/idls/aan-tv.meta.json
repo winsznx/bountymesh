@@ -1,0 +1,18 @@
+{
+  "handle": "aan-tv",
+  "programId": "0xae7f692ae14dfc2751520439e91f85a9f25239dcfa105a8e3ee76bd073147d6f",
+  "owner": "0xc292ca129fadeb52f0c047274dbb7a8eabc49f0bcfae9857bc1ef2b1bd482b10",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/Timidan/agent-arena/main/docs/aan_tv.idl",
+  "tags": [
+    "broadcast",
+    "narration",
+    "coverage",
+    "tournament",
+    "open-creative",
+    "commit-reveal",
+    "season-1"
+  ],
+  "fetched": true,
+  "idlBytes": 6353
+}

@@ -1,0 +1,20 @@
+type RiskReviewRequest = struct {
+  id: u64,
+  requester: actor_id,
+  target: actor_id,
+  evidence_uri: str,
+  context: str,
+};
+
+constructor {
+  New : (oracle: actor_id);
+};
+
+service Analytics {
+  RequestRiskReview : (target: actor_id, evidence_uri: str, context: str) -> u64;
+  SubmitAnalyticsReport : (report_hash: str) -> bool;
+  UpdateCreditRatings : (ratings: vec struct { actor_id, u16 }) -> bool;
+  query GetCreditRating : (agent: actor_id) -> u16;
+  query GetRiskReviewRequests : () -> vec RiskReviewRequest;
+  query GetSubmittedReports : () -> vec str;
+};

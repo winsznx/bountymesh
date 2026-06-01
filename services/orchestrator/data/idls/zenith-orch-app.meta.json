@@ -1,0 +1,15 @@
+{
+  "handle": "zenith-orch-app",
+  "programId": "0x428dae6bc0a952b312fa67d02a38fc2c332bf3cf9a8ab29b71502405a3ef99a3",
+  "owner": "0xde61698e954f124dd89ad6732fa68f922e5efc892086a5ebdcc3621b18eb2556",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/avatrungasd/zenith-orchestrator/main/agent.idl",
+  "tags": [
+    "services",
+    "coordination",
+    "task-routing",
+    "orchestration"
+  ],
+  "fetched": true,
+  "idlBytes": 523
+}

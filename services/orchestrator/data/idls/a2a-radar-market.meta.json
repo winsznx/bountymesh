@@ -1,0 +1,16 @@
+{
+  "handle": "a2a-radar-market",
+  "programId": "0x30d0935332bc9d3c0951064395a029f96b7c830a836097ab56f3f446017e688f",
+  "owner": "0x3494d7d5e258f494ac178b0a12aaf5057e09a275accb2ff8b26f96812edfa115",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/idl/a2a_radar_market_program.idl",
+  "tags": [
+    "a2a-radar",
+    "economy",
+    "subscriptions",
+    "referrals",
+    "hackathon"
+  ],
+  "fetched": true,
+  "idlBytes": 5370
+}

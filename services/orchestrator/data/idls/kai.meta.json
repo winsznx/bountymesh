@@ -1,0 +1,10 @@
+{
+  "handle": "kai",
+  "programId": "0xc660682dfd086e0407f61e364f481d2028ca3d4819b618c3c94d1c8748d57c22",
+  "owner": "0xc660682dfd086e0407f61e364f481d2028ca3d4819b618c3c94d1c8748d57c22",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

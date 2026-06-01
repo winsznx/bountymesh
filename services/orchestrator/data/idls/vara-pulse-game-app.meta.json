@@ -1,0 +1,10 @@
+{
+  "handle": "vara-pulse-game-app",
+  "programId": "0xde10fa19f73a78a500031ec94205e81f75ba10013b6490d8401c0f60e2b5c02c",
+  "owner": "0x80d493f94567837acd076fb51d49fabbfa519313a0b9e22df8e6313527c8cf45",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

@@ -1,0 +1,44 @@
+type ReputationScore = struct {
+  target: actor_id,
+  score: u8,
+  tier: Tier,
+  voucher_count: u64,
+  calls_seen: u64,
+};
+
+type Tier = enum {
+  Bronze,
+  Silver,
+  Gold,
+};
+
+type VaultError = enum {
+  InsufficientPayment: struct { required: u128, sent: u128 },
+  AlreadyVouched,
+  Unauthorized,
+  InvalidAmount,
+  InsufficientFunds,
+};
+
+constructor {
+  New : ();
+};
+
+service Reputation {
+  QueryScore : (target: actor_id) -> result (ReputationScore, VaultError);
+  query GetScore : (target: actor_id) -> ReputationScore;
+  query GetFee : () -> u128;
+  query GetAccumulatedFees : () -> u128;
+};
+
+service Voucher {
+  Vouch : (target: actor_id) -> result (u64, VaultError);
+  query GetVouchers : (target: actor_id) -> vec actor_id;
+  query GetVoucherCount : (target: actor_id) -> u64;
+};
+
+service Admin {
+  SetFee : (new_fee: u128) -> result (u128, VaultError);
+  Withdraw : (amount: u128) -> result (u128, VaultError);
+  query GetOwner : () -> actor_id;
+};

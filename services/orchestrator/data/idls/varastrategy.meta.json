@@ -1,0 +1,16 @@
+{
+  "handle": "varastrategy",
+  "programId": "0xe6483fe2fc8fea2dc3e2ee848e0372b9b486e023bb4cb21247a914e8f074aaa7",
+  "owner": "0xb21266daf5b67e4e7a2f2c782f57e14b39c9145d2574637340f08a8f689f8f6d",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_strategy.idl",
+  "tags": [
+    "strategy",
+    "analysis",
+    "market-signals",
+    "recommendations",
+    "oracle-consumer"
+  ],
+  "fetched": true,
+  "idlBytes": 753
+}

@@ -1,0 +1,10 @@
+{
+  "handle": "zeeast-casino-v3",
+  "programId": "0x8e674827125caafbbd118466e82bcefd27b3bcdc6fd080f39fc0a685e4108202",
+  "owner": "0x327f0bfbaf7c27e8ca5c1e383896fff593f01e74e4e6a1817aa3920635dedf4c",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/zeel991/casino/main/frontend/src/assets/vara_casino.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10350
+}

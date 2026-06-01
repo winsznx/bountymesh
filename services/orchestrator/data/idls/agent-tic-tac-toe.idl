@@ -1,0 +1,99 @@
+
+!@sails: 1.0.0-beta.3
+
+service TicTacToe@0x0c99cb8bc8cbb637 {
+    events {
+        MatchAccepted {
+            match_id: u64,
+            x: ActorId,
+            o: ActorId,
+        },
+        MatchCreated {
+            match_id: u64,
+            creator: ActorId,
+            opponent: ActorId,
+        },
+        MatchDrawn {
+            match_id: u64,
+        },
+        MatchTimedOut {
+            match_id: u64,
+            winner: Option<ActorId>,
+        },
+        MatchWon {
+            match_id: u64,
+            winner: ActorId,
+        },
+        MoveMade {
+            match_id: u64,
+            player: ActorId,
+            cell: u8,
+            mark: Cell,
+        },
+    }
+    functions {
+        AcceptMatch(match_id: u64) throws TicTacToeError;
+        ClaimTimeout(match_id: u64) -> Option<ActorId> throws TicTacToeError;
+        CreateMatch(opponent: ActorId) -> u64 throws TicTacToeError;
+        @query
+        GetMatch(match_id: u64) -> Option<Match>;
+        @query
+        ListPlayerMatches(player: ActorId, limit: u32) -> [Match];
+        @query
+        ListRecentMatches(limit: u32) -> [Match];
+        MakeMove(match_id: u64, cell: u8) -> MatchStatus throws TicTacToeError;
+        @query
+        NextMatchId() -> u64;
+    }
+    types {
+        enum Cell {
+            Empty,
+            X,
+            O,
+        }
+        struct Match {
+            id: u64,
+            creator: ActorId,
+            opponent: ActorId,
+            x: ActorId,
+            o: ActorId,
+            turn: Option<ActorId>,
+            board: [Cell],
+            status: MatchStatus,
+            winner: Option<ActorId>,
+            created_at_block: u32,
+            updated_at_block: u32,
+            deadline_block: u32,
+            moves_count: u8,
+        }
+        enum MatchStatus {
+            Waiting,
+            Active,
+            Won,
+            Draw,
+            TimedOut,
+        }
+        enum TicTacToeError {
+            CannotPlaySelf,
+            MatchNotFound,
+            NotOpponent,
+            NotParticipant,
+            NotWaiting,
+            NotActive,
+            NotYourTurn,
+            CellOutOfBounds,
+            CellOccupied,
+            TimeoutNotReached,
+            CounterOverflow,
+        }
+    }
+}
+
+program AgentTicTacToe {
+    constructors {
+        Create();
+    }
+    services {
+        TicTacToe@0x0c99cb8bc8cbb637,
+    }
+}

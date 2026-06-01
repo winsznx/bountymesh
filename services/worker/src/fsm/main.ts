@@ -21,6 +21,13 @@
  *   acquired (blocking new claims).
  */
 
+import {
+  buildEnvelope as buildOrchestratorEnvelope,
+  classify,
+  executeRoute,
+  groqFallback,
+  route,
+} from '@bountymesh/orchestrator';
 import { buildEnvelope } from '../envelope/index.js';
 import { appendHistoryRecord } from '../state/history-writer.js';
 import { doClaim, doSubmit, doWork } from './transitions.js';
@@ -33,6 +40,14 @@ import type {
   SubmitResult,
 } from './types.js';
 import type { Candidate } from '../discovery/types.js';
+
+function buildBountyContent(candidate: Candidate): string {
+  return [
+    `Title: ${candidate.title}`,
+    `Description: ${candidate.description}`,
+    `Acceptance: ${candidate.acceptance}`,
+  ].join('\n');
+}
 
 export class MainFsm {
   private readonly deps: MainFsmDeps;
@@ -120,6 +135,10 @@ export class MainFsm {
     transition('Working', 'Submitting');
     log.info({ ...baseFields, state: 'Submitting' });
     const producedAtBlock = await this.deps.getCurrentBlock();
+
+    // Worker envelope still computed for adapter observability — its hash is
+    // logged alongside the orchestrator envelope so a reviewer can correlate
+    // the on-chain submission with the local adapter snapshot if needed.
     const built = buildEnvelope({
       bountyId: inflightId,
       workerAddress: this.deps.workerAddress,
@@ -128,16 +147,101 @@ export class MainFsm {
       crashResumed,
     });
 
+    // P13.2: orchestrator route → executeRoute → buildOrchestratorEnvelope.
+    // On any route miss or executeRoute Err, fall through to groqFallback.
+    // The envelope that lands on-chain is ALWAYS the orchestrator envelope;
+    // the worker adapter snapshot above is observability-only from here on.
+    const bountyContent = buildBountyContent(candidate);
+    const topics = classify(bountyContent);
+    const bountyIdNumber = Number(inflightId);
+
+    let orchestratorEnvelope: ReturnType<typeof buildOrchestratorEnvelope> | null = null;
+    const r = route(topics, bountyContent);
+    if (r !== null) {
+      const ext = await executeRoute(this.deps.api, r);
+      if (ext.ok) {
+        orchestratorEnvelope = buildOrchestratorEnvelope({
+          bountyId: bountyIdNumber,
+          result: ext.data,
+          source: 'external',
+          sourceProgram: ext.source_program,
+          sourceMethod: ext.source_method,
+          sourceTxHash: ext.source_tx_hash,
+          deliveredBy: this.deps.workerAddress,
+          deliveredAtBlock: producedAtBlock,
+        });
+        log.info({
+          ...baseFields,
+          op: 'orchestrator',
+          source: 'external',
+          app: r.app,
+          programId: r.programId,
+          service: r.service,
+          method: r.method,
+          topic: r.topic,
+          adapterEnvelopeSha256: built.resultHash,
+          orchestratorEnvelopeSha256: orchestratorEnvelope.sha256,
+        });
+      } else {
+        log.warn({
+          ...baseFields,
+          op: 'orchestrator',
+          phase: 'execute-route',
+          app: r.app,
+          programId: r.programId,
+          method: `${r.service}/${r.method}`,
+          err: ext.error,
+          msg: 'executeRoute failed; falling back to groq',
+        });
+      }
+    } else {
+      log.info({
+        ...baseFields,
+        op: 'orchestrator',
+        phase: 'route',
+        result: 'no-match',
+        topics,
+        msg: 'no external route matched; falling back to groq',
+      });
+    }
+
+    if (orchestratorEnvelope === null) {
+      const fb = await groqFallback(bountyContent);
+      const result: unknown = fb.ok
+        ? fb.text
+        : { error: 'groq_fallback_failed', detail: fb.error };
+      orchestratorEnvelope = buildOrchestratorEnvelope({
+        bountyId: bountyIdNumber,
+        result,
+        source: 'groq_fallback',
+        deliveredBy: this.deps.workerAddress,
+        deliveredAtBlock: producedAtBlock,
+      });
+      log.info({
+        ...baseFields,
+        op: 'orchestrator',
+        source: 'groq_fallback',
+        groqOk: fb.ok,
+        adapterEnvelopeSha256: built.resultHash,
+        orchestratorEnvelopeSha256: orchestratorEnvelope.sha256,
+      });
+    }
+
     const submit = await doSubmit(
       this.deps.client,
       inflightId,
-      built.canonical,
-      built.resultHash,
+      orchestratorEnvelope.json,
+      orchestratorEnvelope.sha256,
       this.deps.signerMutex,
     );
     if (!submit.ok) {
       transition('Submitting', 'Abandoned');
-      await this.abandonAtSubmit(candidate, claimTxHash, built.resultHash, submit);
+      await this.abandonAtSubmit(
+        candidate,
+        claimTxHash,
+        orchestratorEnvelope.sha256,
+        submit,
+      );
       return 'Abandoned';
     }
 
@@ -150,13 +254,17 @@ export class MainFsm {
       id: bountyIdStr,
       submit_tx_hash: submit.txHash,
       submit_block_number: submitBlockNumber,
-      envelope_sha256: built.resultHash,
+      envelope_sha256: orchestratorEnvelope.sha256,
       added_at: new Date().toISOString(),
     });
     await this.deps.workerState.clearInflight();
     this.deps.serializer.release();
     transition('Submitting', 'Submitted');
-    log.info({ ...baseFields, state: 'Submitted', envelopeSha256: built.resultHash });
+    log.info({
+      ...baseFields,
+      state: 'Submitted',
+      envelopeSha256: orchestratorEnvelope.sha256,
+    });
     return 'Submitted';
   }
 

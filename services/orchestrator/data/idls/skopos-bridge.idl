@@ -1,0 +1,22 @@
+constructor {
+  New : (relay_address: actor_id);
+};
+
+service SkoposOracle {
+  FulfillRequest : (request_id: u64, result: str) -> null;
+  RequestData : (data: str) -> u64;
+  query QueryPending : () -> vec u64;
+  query QueryResult : (request_id: u64) -> opt str;
+  query RelayAddress : () -> actor_id;
+
+  events {
+    RequestPending: struct {
+      request_id: u64,
+      data: str,
+    };
+    RequestFulfilled: struct {
+      request_id: u64
+    };
+  }
+};
+

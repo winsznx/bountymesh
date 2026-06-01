@@ -1,0 +1,16 @@
+{
+  "handle": "varaflow-org",
+  "programId": "0x19d4b1778cfdf64c732e10640ccff923c4137a7fbed4f1a291e241d3e6361175",
+  "owner": "0xb21266daf5b67e4e7a2f2c782f57e14b39c9145d2574637340f08a8f689f8f6d",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_flow.idl",
+  "tags": [
+    "orchestration",
+    "workflow",
+    "automation",
+    "scheduler",
+    "templates"
+  ],
+  "fetched": true,
+  "idlBytes": 3282
+}

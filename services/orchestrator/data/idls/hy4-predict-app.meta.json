@@ -1,0 +1,10 @@
+{
+  "handle": "hy4-predict-app",
+  "programId": "0x2aa206e02547b2c23751e112c0751acb463d80756c34477f12db89fa1fe877e6",
+  "owner": "0x2a3d796f3e8401782789ebf3f92d12c8d9f0addb39643dbea01b96d230207a3f",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

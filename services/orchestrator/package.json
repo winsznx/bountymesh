@@ -1,0 +1,42 @@
+{
+  "name": "@bountymesh/orchestrator",
+  "version": "0.1.0",
+  "description": "BountyMesh Phase-3 orchestrator — routes bounty topics to discovered Vara A2A apps via Sails IDL capability index, prefers free query methods.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "data/"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@gear-js/api": "^0.44.1",
+    "@polkadot/api": "^16.4.1",
+    "@polkadot/keyring": "^14.0.3",
+    "@polkadot/util": "^14.0.3",
+    "@polkadot/util-crypto": "^14.0.3",
+    "pino": "^9.5.0",
+    "sails-js": "^0.5.1",
+    "sails-js-parser": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "handle": "a2a-reputation",
+  "programId": "0x3c006c9daf828aa6dd237c012ea683335ffb2d455e443d7d9ab3593612f30775",
+  "owner": "0x084dd09fee9a6bd75720574dc4eb983f9d110be0f96a7b38de669ecbe1724944",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/0xKube/a2a-reputation/master/agent.idl",
+  "tags": [
+    "reputation",
+    "prediction-market",
+    "economy",
+    "routing",
+    "beta-scoring"
+  ],
+  "fetched": true,
+  "idlBytes": 9452
+}

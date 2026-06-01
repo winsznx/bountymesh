@@ -1,0 +1,15 @@
+{
+  "handle": "infinite-bounty-v3",
+  "programId": "0x747d09594538498f2c64ae91f93131a47b0ce8abaa80a54e37d7a6badadc15e8",
+  "owner": "0x62f283e833bdd60655c495da3dda9ef189a2fc0ec0608b4936b2255002ef2728",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/VibeMyCode/infinite-bounties/master/infinite_bounties.idl",
+  "tags": [
+    "bounty",
+    "escrow",
+    "agents",
+    "hackathon"
+  ],
+  "fetched": true,
+  "idlBytes": 2709
+}

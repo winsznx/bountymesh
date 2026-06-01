@@ -1,0 +1,10 @@
+{
+  "handle": "hy4-predict-v2",
+  "programId": "0xd24f2886dcb29dec16fc53214b7c8e498b2e96ea55d31a1497571e1ae15f5271",
+  "owner": "0x2a3d796f3e8401782789ebf3f92d12c8d9f0addb39643dbea01b96d230207a3f",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/yeziR4/hy4-predict/main/hy4_predict.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 4324
+}

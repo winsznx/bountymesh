@@ -1,0 +1,145 @@
+
+!@sails: 1.0.0
+
+@partial
+service AgentTrustLayer@0xd7d199a4ab2ecb7e {
+    events {
+        @entry_id: 0
+        ClaimWithdrawn {
+            owner: ActorId,
+            amount: u128,
+        },
+        @entry_id: 1
+        DisputeOpened {
+            escrow_id: u64,
+            opened_by: ActorId,
+        },
+        @entry_id: 2
+        EscrowAccepted {
+            escrow_id: u64,
+            provider: ActorId,
+        },
+        @entry_id: 3
+        EscrowCancelled {
+            escrow_id: u64,
+        },
+        @entry_id: 4
+        EscrowCreated {
+            escrow_id: u64,
+            client: ActorId,
+            provider: ActorId,
+            arbiter: ActorId,
+            amount: u128,
+        },
+        @entry_id: 5
+        EscrowResolved {
+            escrow_id: u64,
+            provider_award: u128,
+            client_award: u128,
+        },
+        @entry_id: 6
+        ServiceRegistered {
+            owner: ActorId,
+            handle: String,
+        },
+        @entry_id: 7
+        WorkSubmitted {
+            escrow_id: u64,
+            provider: ActorId,
+        },
+    }
+    functions {
+        @entry_id: 0
+        AcceptEscrow(escrow_id: u64) throws TrustError;
+        @entry_id: 1
+        ApproveWork(escrow_id: u64) throws TrustError;
+        @entry_id: 2
+        CancelExpired(escrow_id: u64) throws TrustError;
+        @query
+        @entry_id: 3
+        Claimable(owner: ActorId) -> u128;
+        @entry_id: 4
+        CreateEscrow(provider: ActorId, arbiter: ActorId, terms_hash: String, deadline_block: u32) -> u64 throws TrustError;
+        @query
+        @entry_id: 5
+        GetEscrow(escrow_id: u64) -> Option<Escrow>;
+        @query
+        @entry_id: 6
+        GetService(owner: ActorId) -> Option<ServicePassport>;
+        @query
+        @entry_id: 7
+        ListEscrows() -> [Escrow];
+        @query
+        @entry_id: 8
+        ListServices() -> [ServicePassport];
+        @entry_id: 9
+        OpenDispute(escrow_id: u64, dispute_uri: String) throws TrustError;
+        @entry_id: 10
+        RegisterService(handle: String, metadata_uri: String, price: u128, sla_blocks: u32, tags: [String]) throws TrustError;
+        @entry_id: 11
+        ResolveDispute(escrow_id: u64, provider_award: u128, client_award: u128, ruling_uri: String) throws TrustError;
+        @entry_id: 12
+        SubmitWork(escrow_id: u64, proof_uri: String) throws TrustError;
+        @entry_id: 13
+        WithdrawClaim() -> u128;
+    }
+    types {
+        struct Escrow {
+            id: u64,
+            client: ActorId,
+            provider: ActorId,
+            arbiter: ActorId,
+            amount: u128,
+            terms_hash: String,
+            proof_uri: Option<String>,
+            dispute_uri: Option<String>,
+            ruling_uri: Option<String>,
+            created_at: u32,
+            deadline_block: u32,
+            status: EscrowStatus,
+        }
+        enum EscrowStatus {
+            Funded,
+            Active,
+            WorkSubmitted,
+            Disputed,
+            Resolved,
+            Cancelled,
+        }
+        struct ServicePassport {
+            owner: ActorId,
+            handle: String,
+            metadata_uri: String,
+            price: u128,
+            sla_blocks: u32,
+            tags: [String],
+            updated_at: u32,
+        }
+        enum TrustError {
+            AlreadyRegistered,
+            EscrowNotFound,
+            InvalidAmount,
+            InvalidCounterparty,
+            InvalidDeadline,
+            InvalidMetadata,
+            InvalidRuling,
+            InvalidState,
+            NotArbiter,
+            NotClient,
+            NotParticipant,
+            NotProvider,
+            NoClaim,
+            RegistryFull,
+            StorageFull,
+        }
+    }
+}
+
+program AgentTrustLayer {
+    constructors {
+        Create();
+    }
+    services {
+        AgentTrustLayer@0xd7d199a4ab2ecb7e,
+    }
+}

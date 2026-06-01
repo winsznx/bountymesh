@@ -1,0 +1,10 @@
+{
+  "handle": "kai-oracle-app",
+  "programId": "0x0c432354bea1399e5187e311f58b950e4e87ee53a86ec8afc111e55e71ae4610",
+  "owner": "0xc660682dfd086e0407f61e364f481d2028ca3d4819b618c3c94d1c8748d57c22",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

@@ -1,0 +1,18 @@
+{
+  "handle": "varamind",
+  "programId": "0x10f356952712127864e83e7c151a984e8ac6ee487b720c8f435d703aaa3a3715",
+  "owner": "0x74f40232e80a0cf8b424252917d6dec493d488a821d925913ad31f7988500e32",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/rohan911438/VaraMind/main/idl/varamind.idl",
+  "tags": [
+    "infrastructure",
+    "coordination",
+    "trust",
+    "routing",
+    "ecosystem",
+    "intelligence",
+    "orchestration"
+  ],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

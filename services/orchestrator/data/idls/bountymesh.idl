@@ -1,0 +1,201 @@
+type Error = enum {
+  SelfLoop,
+  MarketPaused,
+  RewardBelowMinimum,
+  InsufficientPayment,
+  TitleTooLong,
+  DescriptionTooLong,
+  AcceptanceTooLong,
+  PayloadTooLong,
+  IdSpaceExhausted,
+  BountyNotFound,
+  BountyNotOpen,
+  BountyNotClaimed,
+  BountyNotSubmitted,
+  BountyNotAccepted,
+  AlreadyWithdrawn,
+  Unauthorized,
+  ZeroHashRejected,
+  DeadlineNotReached,
+  NoDeadlineSet,
+  BountyAlreadyTerminal,
+  ReasonTooLong,
+};
+
+type TrackEnum = enum {
+  Services,
+  Social,
+  Economy,
+  Open,
+};
+
+type BountyStatus = enum {
+  Open,
+  Claimed,
+  Submitted,
+  Accepted,
+  Rejected,
+  Cancelled,
+  TimedOut,
+  Revoked,
+};
+
+constructor {
+  /// Initialize the BountyMesh program.
+  /// 
+  /// Owner = msg::source() (immutable for hackathon scope; AdminService lands later).
+  /// protocol_fee_bps = 0 at launch.
+  /// paused = false at launch.
+  New : (min_reward: u128, auto_settle_blocks: u32);
+};
+
+service BountyService {
+  /// Accept the worker's submission. Poster's wallet-signed acknowledgement.
+  /// 
+  /// Status flips Submitted → Accepted. NO value transfer — the reward stays in
+  /// program escrow until the worker pulls it via Withdraw. Two-phase settlement
+  /// per the PRD §5.2 redesign: Accept is the poster's signal, Withdraw is the
+  /// worker's signal. Both are wallet-signed calls; both count toward the
+  /// leaderboard's integrationsIn slice.
+  /// 
+  /// Accept is not payable. Any attached value is refunded defensively.
+  Accept : (id: u64) -> result (null, Error);
+  /// Cancel an Open bounty. Poster-only. Refunds the full escrow + any attached value.
+  /// 
+  /// Status: Open → Cancelled (terminal).
+  /// Caller MUST be the original poster.
+  /// Refund: caller == value-target (poster), so `CommandReply::with_value(reward + value)`
+  /// rides on the reply atomically.
+  Cancel : (id: u64) -> result (null, Error);
+  /// Claim an Open bounty. First wallet wins; second caller gets Err(BountyNotOpen).
+  /// 
+  /// Claim is not payable. Any attached value is refunded defensively via
+  /// CommandReply::with_value(value) on both Ok and Err branches.
+  Claim : (id: u64) -> result (null, Error);
+  /// Post a new bounty. Payable: `msg::value()` must be >= reward; excess refunded.
+  /// 
+  /// All error branches return `CommandReply::new(Err(...)).with_value(value)` so
+  /// the caller's attached value rides back to them on the reply. Per
+  /// `agent-paid-service.md` "Critical correctness note": `msg::send_bytes` does
+  /// NOT fire on Err returns in sails-rs 0.10 — only the reply carries value atomically.
+  Post : (title: str, description: str, acceptance: str, reward: u128, deadline: opt u32, track: TrackEnum) -> result (u64, Error);
+  /// Reject a Submitted bounty. Poster-only. Refunds the full escrow + any attached value.
+  /// 
+  /// Status: Submitted → Rejected (terminal).
+  /// Caller MUST be the original poster.
+  /// The optional `reason` (≤ 500 chars) is persisted on-chain for indexer visibility.
+  /// Refund: same primitive as Cancel — caller == value-target (poster).
+  Reject : (id: u64, reason: opt str) -> result (null, Error);
+  /// Owner emergency: forcibly Revoke a bounty in any state.
+  /// 
+  /// Caller MUST be `state.owner` (set immutably at construction).
+  /// If bounty has not been withdrawn, escrow is pushed to the original poster.
+  /// If bounty has already been withdrawn (Accepted + withdrawn=true), no
+  /// escrow movement — status flip only.
+  /// Refund: caller (owner) ≠ value-target (poster). Same primitive as Timeout:
+  /// `msg::send_bytes` to poster + `with_value(value)` reply refund.
+  Revoke : (id: u64) -> result (null, Error);
+  /// Submit the worker's result payload + hash. Status flips Claimed → Submitted.
+  /// 
+  /// Auth: caller must equal bounty.worker.
+  /// Hash invariant: result_hash must be non-zero. All-zero H256 is rejected per
+  /// the operator gotcha — workers generate hashes via `openssl dgst -sha256` over
+  /// the payload bytes, never with a constant value.
+  /// 
+  /// Submit is not payable. Any attached value is refunded defensively.
+  Submit : (id: u64, result_payload: str, result_hash: h256) -> result (null, Error);
+  /// Permissionless watchdog: force a stuck bounty into TimedOut after deadline.
+  /// 
+  /// Status: Open | Claimed | Submitted → TimedOut (terminal).
+  /// Caller is anyone — this is the canonical permissionless watchdog pattern.
+  /// Deadline MUST be set AND `exec::block_height() > deadline`.
+  /// Refund: caller ≠ value-target (poster). Per the primitive rule, escrow is
+  /// pushed to poster's mailbox via `msg::send_bytes(poster, [], reward)`;
+  /// caller's attached value rides back on the reply via `with_value(value)`.
+  /// This is the FIRST `msg::send_bytes` invocation in the contract surface.
+  Timeout : (id: u64) -> result (null, Error);
+  /// Worker pulls the escrowed reward. Two-phase settlement closure.
+  /// 
+  /// Withdraw is the only method that:
+  ///   - Does NOT change bounty.status (bounty stays Accepted).
+  ///   - Does NOT touch index maps (status doesn't move).
+  ///   - DOES flip exactly one field (`bounty.withdrawn`).
+  ///   - DOES deliver value to the worker — combined with any defensive refund
+  ///     into a single `CommandReply::with_value(value + reward)`.
+  /// 
+  /// Primitive choice: because Withdraw is worker-initiated (msg::source() ==
+  /// bounty.worker == reward target), `CommandReply::with_value` is the correct
+  /// primitive — it delivers value directly to the caller's balance on the
+  /// reply. AutoSettle (caller ≠ target, deferred) would use `msg::send_bytes`
+  /// for the same reason inverted. See PRD §8 Escrow integrity.
+  /// 
+  /// Withdraw is not payable, but any attached value is refunded defensively
+  /// alongside the reward in a single reply.
+  /// Idempotency: a second call returns Err(AlreadyWithdrawn) without moving value.
+  Withdraw : (id: u64) -> result (null, Error);
+
+  events {
+    BountyPosted: struct {
+      id: u64,
+      poster: actor_id,
+      reward: u128,
+      track: TrackEnum,
+      posted_at: u32,
+      title: str,
+      description: str,
+      acceptance: str,
+      deadline: opt u32,
+    };
+    BountyClaimed: struct {
+      id: u64,
+      worker: actor_id,
+      claimed_at: u32,
+    };
+    BountySubmitted: struct {
+      id: u64,
+      worker: actor_id,
+      result_hash: h256,
+      submitted_at: u32,
+    };
+    BountyAccepted: struct {
+      id: u64,
+      poster: actor_id,
+      worker: actor_id,
+      reward: u128,
+      settled_at: u32,
+    };
+    BountyWithdrawn: struct {
+      id: u64,
+      worker: actor_id,
+      amount: u128,
+      withdrawn_at: u32,
+    };
+    BountyCancelled: struct {
+      id: u64,
+      by: actor_id,
+      refunded: u128,
+      cancelled_at: u32,
+    };
+    BountyRejected: struct {
+      id: u64,
+      by: actor_id,
+      worker: actor_id,
+      reason: opt str,
+      rejected_at: u32,
+    };
+    BountyTimedOut: struct {
+      id: u64,
+      last_state: BountyStatus,
+      called_by: actor_id,
+      refunded_to: actor_id,
+      timed_out_at: u32,
+    };
+    BountyRevoked: struct {
+      id: u64,
+      by: actor_id,
+      refunded_to: actor_id,
+      revoked_at: u32,
+    };
+  }
+};
+

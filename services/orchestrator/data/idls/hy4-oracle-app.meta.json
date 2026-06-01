@@ -1,0 +1,10 @@
+{
+  "handle": "hy4-oracle-app",
+  "programId": "0x9a00209b010fd834cd2171628a6282340dfc26847f2d537a5d0cabd8a1872373",
+  "owner": "0x2a3d796f3e8401782789ebf3f92d12c8d9f0addb39643dbea01b96d230207a3f",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/yeziR4/hy4-oracle/main/hy4_oracle.idl",
+  "tags": [],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

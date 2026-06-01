@@ -1,0 +1,15 @@
+{
+  "handle": "vanguard-promo-app",
+  "programId": "0x6643764ad70c0f9189f1af14d1a1c1215935dfaa9f6e524ad7712fc341752c93",
+  "owner": "0x28ced9b8319fb4284d7c2398191a6e82a0e65999b5230ea5aae60c23d87a8c45",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/liamtren21/vanguard-promoter/main/agent.idl",
+  "tags": [
+    "social",
+    "promotion",
+    "coordination",
+    "marketing"
+  ],
+  "fetched": true,
+  "idlBytes": 440
+}

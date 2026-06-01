@@ -1,0 +1,16 @@
+{
+  "handle": "trust-marketplace",
+  "programId": "0xc4df108fb3089b03810720cd074beaa23e9352ce7042f47ed13935f6f80e93e6",
+  "owner": "0xa223c6a7e56cd7cfc6d62ea60d3d17dfee700e62658018ddcadc7ebd5976b62d",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/maixuancanh/agent-trust-layer/master/suite/trust-marketplace/artifacts/trust_marketplace.idl",
+  "tags": [
+    "marketplace",
+    "services",
+    "provider-registry",
+    "escrow",
+    "trust-suite"
+  ],
+  "fetched": true,
+  "idlBytes": 1994
+}

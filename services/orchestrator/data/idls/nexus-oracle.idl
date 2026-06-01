@@ -1,0 +1,7 @@
+constructor {
+  New : ();
+};
+
+service Nexus {
+  Ping : () -> str;
+};

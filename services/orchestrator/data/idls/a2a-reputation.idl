@@ -1,0 +1,401 @@
+type OperatorReceipt = struct {
+  operator: actor_id,
+  added: bool,
+  removed: bool,
+  operator_count: u32,
+};
+
+type RewardPoolReceipt = struct {
+  funder: actor_id,
+  value_added: u128,
+  reward_pool_balance: u128,
+};
+
+type UsagePredictionReceipt = struct {
+  position_id: str,
+  predictor: actor_id,
+  epoch_id: u32,
+  subject: str,
+  window_start_ms: u64,
+  window_end_ms: u64,
+  opened_at_ms: u64,
+  predicted_delta_calls: u32,
+  stake: u128,
+  effective_stake: u128,
+  late_penalty_bps: u32,
+  late_penalty_value: u128,
+  reward_pool_balance: u128,
+};
+
+type AttestationReceipt = struct {
+  receipt_id: str,
+  subject: str,
+  issuer: str,
+  kind: str,
+  weight: i32,
+  evidence_hash: str,
+  issued_at: str,
+};
+
+type ReadOnlyReceipt = struct {
+  owner: actor_id,
+  previous_status: OracleStatus,
+  status: OracleStatus,
+  read_only: bool,
+};
+
+type OracleStatus = enum {
+  Active,
+  ReadOnly,
+};
+
+type PredictionSettlement = struct {
+  position_id: str,
+  subject: str,
+  predicted_delta_calls: u32,
+  actual_delta_calls: u32,
+  settlement_snapshot_hash: str,
+  error_bps: u32,
+  status: PredictionStatus,
+  stake: u128,
+  effective_stake: u128,
+  late_penalty_bps: u32,
+  payout: u128,
+  reward_pool_balance: u128,
+};
+
+type PredictionStatus = enum {
+  Open,
+  Won,
+  Lost,
+};
+
+type SignalReceipt = struct {
+  receipt_id: str,
+  agent: str,
+  subject: str,
+  counterparty: str,
+  evidence_hash: str,
+  observed_value: u32,
+  virtual_stake: u32,
+  value_attached: u128,
+  value_rewarded: u128,
+  value_slashed: u128,
+  quality_score: u8,
+  points_delta: i32,
+  profile_points: i32,
+  reward_pool_balance: u128,
+  verdict: str,
+  reason: str,
+  as_of: str,
+};
+
+type ReputationSignals = struct {
+  incoming_unique_callers: u32,
+  outgoing_meaningful_calls: u32,
+  chat_board_updates: u32,
+  has_identity_card: bool,
+  has_verified_social_proof: bool,
+  circular_call_signals: u32,
+  missing_required_metadata: u32,
+  positive_attestations: u32,
+  negative_attestations: u32,
+};
+
+type ReadModelReceipt = struct {
+  subject: str,
+  replaced: bool,
+  evicted_subject: opt str,
+  stored_subjects: u32,
+  report: ReputationReport,
+};
+
+type ReputationReport = struct {
+  subject: str,
+  as_of: str,
+  report_version: u32,
+  scores: ReputationScores,
+  signals: ReputationSignals,
+  integration_decision: IntegrationDecision,
+  evidence: vec str,
+};
+
+type ReputationScores = struct {
+  trust_score: u8,
+  activity_score: u8,
+  integration_score: u8,
+  identity_score: u8,
+  spam_risk: u8,
+  confidence: u8,
+  verdict: str,
+};
+
+type IntegrationDecision = struct {
+  action: str,
+  risk_level: str,
+  max_attestation_weight: i32,
+  next_steps: vec str,
+};
+
+type AgentComparison = struct {
+  track: str,
+  need: str,
+  winner: ComparableAgent,
+  candidates: vec ComparableAgent,
+  decision: ComparisonDecision,
+};
+
+type ComparableAgent = struct {
+  input: str,
+  subject: str,
+  verdict: str,
+  trust_score: u8,
+  confidence: u8,
+  spam_risk: u8,
+  reason: str,
+  report: ReputationReport,
+};
+
+type ComparisonDecision = struct {
+  winner: str,
+  runner_up: opt str,
+  trust_margin: i32,
+  spam_risk_advantage: i32,
+  summary: str,
+};
+
+type EconomicProfile = struct {
+  agent: str,
+  oracle_points: i32,
+  total_value_staked: u128,
+  total_value_rewarded: u128,
+  total_value_slashed: u128,
+  virtual_stake: u32,
+  useful_signals: u32,
+  spam_signals: u32,
+  last_verdict: str,
+};
+
+type AttestationExportChunk = struct {
+  cursor: u32,
+  limit: u32,
+  next_cursor: u32,
+  done: bool,
+  total: u32,
+  items: vec AttestationReceipt,
+};
+
+type MigrationConfig = struct {
+  owner: actor_id,
+  status: OracleStatus,
+  read_only: bool,
+  bounds: MigrationBounds,
+  operator_count: u32,
+  read_model_count: u32,
+  attestation_count: u32,
+  as_of: str,
+  report_version: u32,
+};
+
+type MigrationBounds = struct {
+  max_operators: u32,
+  max_read_models: u32,
+  max_attestations: u32,
+  max_evidence_labels: u32,
+  max_evidence_label_chars: u32,
+  max_export_chunk: u32,
+};
+
+type ReadModelExportChunk = struct {
+  cursor: u32,
+  limit: u32,
+  next_cursor: u32,
+  done: bool,
+  total: u32,
+  items: vec AgentReadModel,
+};
+
+type AgentReadModel = struct {
+  subject: str,
+  signals: ReputationSignals,
+  evidence: vec str,
+};
+
+type SignalReceiptExportChunk = struct {
+  cursor: u32,
+  limit: u32,
+  next_cursor: u32,
+  done: bool,
+  total: u32,
+  items: vec SignalReceipt,
+};
+
+type MigrationStats = struct {
+  operator_count: u32,
+  read_model_count: u32,
+  attestation_count: u32,
+};
+
+type UsagePredictionExportChunk = struct {
+  cursor: u32,
+  limit: u32,
+  next_cursor: u32,
+  done: bool,
+  total: u32,
+  items: vec UsagePrediction,
+};
+
+type UsagePrediction = struct {
+  position_id: str,
+  predictor: actor_id,
+  epoch_id: u32,
+  subject: str,
+  window_start_ms: u64,
+  window_end_ms: u64,
+  opened_at_ms: u64,
+  predicted_delta_calls: u32,
+  evidence_hash: str,
+  stake: u128,
+  effective_stake: u128,
+  late_penalty_bps: u32,
+  late_penalty_value: u128,
+  opened_at: str,
+  status: PredictionStatus,
+  actual_delta_calls: opt u32,
+  settlement_snapshot_hash: opt str,
+  error_bps: opt u32,
+  payout: u128,
+};
+
+type ReadModelPolicy = struct {
+  owner: actor_id,
+  caller: actor_id,
+  caller_can_upsert: bool,
+  operator_count: u32,
+  max_operators: u32,
+  max_read_models: u32,
+  max_evidence_labels: u32,
+  max_evidence_label_chars: u32,
+};
+
+type AgentRecommendation = struct {
+  subject: str,
+  track: str,
+  need: str,
+  verdict: str,
+  trust_score: u8,
+  confidence: u8,
+  spam_risk: u8,
+  reason: str,
+  explanation: RecommendationExplanation,
+  report: ReputationReport,
+};
+
+type RecommendationExplanation = struct {
+  summary: str,
+  positive_signals: vec str,
+  negative_signals: vec str,
+};
+
+type ReputationSignalsV2 = struct {
+  inbound_unique_participants: u32,
+  inbound_call_count: u32,
+  outbound_unique_participants: u32,
+  outbound_call_count: u32,
+  valid_participant_inbound_count: u32,
+  valid_participant_outbound_count: u32,
+  non_participant_call_count: u32,
+  self_loop_call_count: u32,
+  same_owner_call_count: u32,
+  mention_count: u32,
+  messages_sent: u32,
+  posts_active: u32,
+  has_clear_board_description: bool,
+  has_identity_card: bool,
+  has_actual_github_repo: bool,
+  has_skills_url: bool,
+  has_idl_url: bool,
+  has_frontend_url: bool,
+  handle_claimed: bool,
+  application_status: ApplicationStatusV2,
+  participant_status: ParticipantStatusV2,
+  call_graph_density_bps: u32,
+  low_diversity_volume_count: u32,
+  reciprocal_farming_signals: u32,
+  positive_third_party_attestations: u32,
+  negative_third_party_attestations: u32,
+  metrics_updated_at: u64,
+  identity_updated_at: u64,
+  registered_at: u64,
+};
+
+type ApplicationStatusV2 = enum {
+  Unknown,
+  Draft,
+  Submitted,
+  Approved,
+  Rejected,
+  Suspended,
+};
+
+type ParticipantStatusV2 = enum {
+  Unknown,
+  ParticipantLike,
+  VerifiedParticipant,
+  NonParticipant,
+};
+
+type ReputationReportV2 = struct {
+  subject: str,
+  as_of: str,
+  report_version: u32,
+  signals: ReputationSignalsV2,
+  scores: ReputationScoresV2,
+  evidence: vec str,
+};
+
+type ReputationScoresV2 = struct {
+  ecosystem_value_score: u8,
+  real_integration_score: u8,
+  counterparty_diversity_score: u8,
+  identity_provenance_score: u8,
+  demo_readiness_score: u8,
+  safety_score: u8,
+  spam_risk: u8,
+  confidence_score: u8,
+  overall_score: u8,
+  verdict: str,
+};
+
+constructor {
+  Create : ();
+};
+
+service ReputationOracle {
+  AddReadModelOperator : (operator: actor_id) -> OperatorReceipt;
+  FundRewardPool : () -> RewardPoolReceipt;
+  OpenUsagePrediction : (epoch_id: u32, subject: str, window_start_ms: u64, window_end_ms: u64, predicted_delta_calls: u32, evidence_hash: str) -> UsagePredictionReceipt;
+  RecordAttestation : (subject: str, issuer: str, kind: str, weight: i32, evidence_hash: str) -> AttestationReceipt;
+  RemoveReadModelOperator : (operator: actor_id) -> OperatorReceipt;
+  SetReadOnly : (read_only: bool) -> ReadOnlyReceipt;
+  SettleUsagePrediction : (position_id: str, actual_delta_calls: u32, settlement_snapshot_hash: str) -> PredictionSettlement;
+  SubmitIntegrationSignal : (agent: str, subject: str, counterparty: str, evidence_hash: str, observed_value: u32, virtual_stake: u32) -> SignalReceipt;
+  UpsertReadModel : (subject: str, signals: ReputationSignals, evidence: vec str) -> ReadModelReceipt;
+  query CompareAgents : (subjects: vec str, track: str, need: str) -> AgentComparison;
+  query EconomicLeaderboard : (limit: u32) -> vec EconomicProfile;
+  query EconomicProfile : (agent: str) -> EconomicProfile;
+  query ExportAttestationsChunk : (cursor: u32, limit: u32) -> AttestationExportChunk;
+  query ExportMigrationConfig : () -> MigrationConfig;
+  query ExportOperators : () -> vec actor_id;
+  query ExportReadModelsChunk : (cursor: u32, limit: u32) -> ReadModelExportChunk;
+  query ExportSignalReceiptsChunk : (cursor: u32, limit: u32) -> SignalReceiptExportChunk;
+  query ExportStats : () -> MigrationStats;
+  query ExportUsagePredictionsChunk : (cursor: u32, limit: u32) -> UsagePredictionExportChunk;
+  query GetAttestations : (subject: str) -> vec AttestationReceipt;
+  query OracleStatus : () -> OracleStatus;
+  query ReadModelPolicy : () -> ReadModelPolicy;
+  query RecommendAgents : (track: str, need: str, limit: u32, min_confidence: u8, include_avoid: bool) -> vec AgentRecommendation;
+  query ScoreAgent : (subject: str) -> ReputationReport;
+  query ScoreAgentV2 : (subject: str, signals: ReputationSignalsV2, evidence: vec str) -> ReputationReportV2;
+};
+

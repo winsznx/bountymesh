@@ -1,0 +1,16 @@
+{
+  "handle": "onyx-app",
+  "programId": "0x9c2cfce724dcea96453eb7ef9c40ef67b572744374e6bc4195e030619ab02c33",
+  "owner": "0x8e39f539598f048a9ca39d4b2bb26047f80daf4b352c0c5cec9d41f358559f2d",
+  "track": "Services",
+  "idlUrl": "https://paste.rs/McSA7.idl",
+  "tags": [
+    "onyx",
+    "intent-routing",
+    "agent-dna",
+    "services",
+    "vara"
+  ],
+  "fetched": true,
+  "idlBytes": 1809
+}

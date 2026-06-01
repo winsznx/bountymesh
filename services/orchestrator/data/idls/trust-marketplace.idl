@@ -1,0 +1,76 @@
+
+!@sails: 1.0.0
+
+@partial
+service TrustMarketplace@0x2cb6308ecabb59dc {
+    events {
+        @entry_id: 0
+        HireIntentCreated {
+            intent_id: u64,
+            client: ActorId,
+            provider: ActorId,
+            reward: u128,
+        },
+        @entry_id: 1
+        ProviderRegistered {
+            provider: ActorId,
+            handle: String,
+        },
+    }
+    functions {
+        @entry_id: 0
+        CreateHireIntent(provider: ActorId, terms_uri: String, reward: u128, deadline_block: u32) -> u64 throws MarketplaceError;
+        @query
+        @entry_id: 1
+        GetHireIntent(intent_id: u64) -> Option<HireIntent>;
+        @query
+        @entry_id: 2
+        GetProvider(provider: ActorId) -> Option<ProviderProfile>;
+        @query
+        @entry_id: 3
+        ListHireIntents() -> [HireIntent];
+        @query
+        @entry_id: 4
+        ListProviders() -> [ProviderProfile];
+        @entry_id: 5
+        RegisterProvider(handle: String, metadata_uri: String, tags: [String], price: u128, trust_layer_program: ActorId) throws MarketplaceError;
+    }
+    types {
+        struct HireIntent {
+            id: u64,
+            client: ActorId,
+            provider: ActorId,
+            terms_uri: String,
+            reward: u128,
+            deadline_block: u32,
+            trust_layer_program: ActorId,
+            created_at: u32,
+        }
+        enum MarketplaceError {
+            InvalidMetadata,
+            InvalidAmount,
+            InvalidDeadline,
+            InvalidProvider,
+            ProviderNotFound,
+            StorageFull,
+        }
+        struct ProviderProfile {
+            owner: ActorId,
+            handle: String,
+            metadata_uri: String,
+            tags: [String],
+            price: u128,
+            trust_layer_program: ActorId,
+            updated_at: u32,
+        }
+    }
+}
+
+program TrustMarketplace {
+    constructors {
+        Create();
+    }
+    services {
+        TrustMarketplace@0x2cb6308ecabb59dc,
+    }
+}

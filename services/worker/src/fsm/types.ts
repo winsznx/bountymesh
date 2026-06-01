@@ -12,6 +12,7 @@
  */
 
 import type { Logger } from 'pino';
+import type { GearApi } from '@gear-js/api';
 import type { BountyMeshClient, BountyMeshError } from '@bountymesh/sdk';
 import type { WorkAdapter } from '../adapter/index.js';
 import type { WorkHistoryDedup } from '../filter/dedup.js';
@@ -40,6 +41,13 @@ export type SubmitResult =
 
 export interface MainFsmDeps {
   client: BountyMeshClient;
+  /**
+   * Raw GearApi handle. Threaded through because the P13.2 orchestrator
+   * route executor needs to mount its own Sails clients against the same
+   * provider connection (one per discovered external program) for read-only
+   * query calls before the worker submits.
+   */
+  api: GearApi;
   adapter: WorkAdapter;
   workerState: WorkerStateFile;
   dedup: WorkHistoryDedup;

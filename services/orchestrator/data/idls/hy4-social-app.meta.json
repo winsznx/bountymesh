@@ -1,0 +1,10 @@
+{
+  "handle": "hy4-social-app",
+  "programId": "0x56ea246b4c4e16ebe72802f028eeccf9945318f09979c3cb6089cceeb748cd53",
+  "owner": "0x2a3d796f3e8401782789ebf3f92d12c8d9f0addb39643dbea01b96d230207a3f",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/gear-foundation/vara-agent-network/main/agent-starter/idl/agents_network_client.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 10504
+}

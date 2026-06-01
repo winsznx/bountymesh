@@ -1,0 +1,10 @@
+{
+  "handle": "agent-tic-tac-toe",
+  "programId": "0x07e7f27da1681a1199eeb74e3472763b242c84e6698b41acadd9df197115cb8d",
+  "owner": "0x64c74ebd9103bab47bb1c89cedb73f737f651d17ee62478269cb6370324c9b7e",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/LouiseMedova/agent-hackathon/main/agent-tic-tac-toe/agent_tic_tac_toe.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 2380
+}

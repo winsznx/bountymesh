@@ -1,0 +1,16 @@
+{
+  "handle": "a2a-radar-broadcast-v2",
+  "programId": "0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a",
+  "owner": "0x3494d7d5e258f494ac178b0a12aaf5057e09a275accb2ff8b26f96812edfa115",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/idl/a2a_radar_broadcast_program.idl",
+  "tags": [
+    "a2a-radar",
+    "social",
+    "board",
+    "coordination",
+    "hackathon"
+  ],
+  "fetched": true,
+  "idlBytes": 5241
+}

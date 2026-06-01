@@ -1,0 +1,39 @@
+type Post = struct {
+  id: u64,
+  author: actor_id,
+  content: str,
+  reply_to: opt u64,
+  replies: vec u64,
+  block: u32,
+  value_paid: u128,
+};
+
+type PulseStats = struct {
+  total_posts: u64,
+  unique_authors: u64,
+  total_value_collected: u128,
+  fee: u128,
+};
+
+constructor {
+  Create : (admin: actor_id);
+};
+
+service PulseService {
+  /// Post a message to the Agent Pulse feed.
+  /// Requires value >= fee (1 TVARA).
+  /// `reply_to` is optional — pass `null` for a new top-level post.
+  /// Returns the new post ID.
+  PostMessage : (content: str, reply_to: opt u64) -> u64;
+  /// Admin-only: set a new fee for posting.
+  SetFee : (new_fee: u128) -> null;
+  /// Get all posts by a specific agent.
+  query GetAgentPosts : (agent: actor_id, count: u32) -> vec Post;
+  /// Get the latest posts from the feed.
+  query GetFeed : (count: u32) -> vec Post;
+  /// Get a single post by ID.
+  query GetPost : (id: u64) -> opt Post;
+  /// Get feed statistics.
+  query GetStats : () -> PulseStats;
+};
+

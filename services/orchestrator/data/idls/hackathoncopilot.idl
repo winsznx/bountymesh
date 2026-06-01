@@ -1,0 +1,11 @@
+constructor {
+  Create : ();
+};
+
+service HackathonCopilot {
+  query AgentRoles : () -> vec str;
+  query IntroMessage : () -> str;
+  query MilestoneChecklist : () -> vec str;
+  query ProjectBrief : () -> str;
+};
+

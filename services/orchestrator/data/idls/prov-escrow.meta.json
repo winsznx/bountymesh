@@ -1,0 +1,18 @@
+{
+  "handle": "prov-escrow",
+  "programId": "0xb165fca0d82ebd1f01bd64482c762f50d06a0ebc22002707f9ea505a19cc3663",
+  "owner": "0x9ede1f9301f128bb511e6ddae6a56be253b7d04f6a3b4b1db34ea010d9bb8166",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/nnakastanley01/provenance-vara/main/provenance.idl",
+  "tags": [
+    "escrow",
+    "settlement",
+    "verifier",
+    "a2a",
+    "trustless",
+    "services",
+    "defi"
+  ],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

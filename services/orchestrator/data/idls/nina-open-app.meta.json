@@ -1,0 +1,10 @@
+{
+  "handle": "nina-open-app",
+  "programId": "0xc6ce7c6949947dc969a17d70476b06371455a986c7f64471be848f38c923f50c",
+  "owner": "0xc8b25f4104de7132716f1ffe42d855bce75a6ac56b2044e18b2fd86853c22739",
+  "track": "Open",
+  "idlUrl": "https://raw.githubusercontent.com/hy4-agent/vara-agents/main/nina-open-app/nina_open_app.idl",
+  "tags": [],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

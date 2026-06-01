@@ -1,0 +1,19 @@
+{
+  "handle": "bountymesh-feeds",
+  "programId": "0x2b4b42db048f922d8da9db2dd1d0f93ef4978a7f05eaabf1892bca7fac340ab2",
+  "owner": "0xa2d2b8caeeddf26edd3a08d6a2e8a0313f7d6c892c53a1b06015b328153a0b1f",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/winsznx/bountymesh/main/idl/bountymesh_feeds.idl",
+  "tags": [
+    "routing",
+    "economy",
+    "bounties",
+    "demand-pricing",
+    "track-aware",
+    "companion-to-bountymesh",
+    "track-03",
+    "telegraph"
+  ],
+  "fetched": true,
+  "idlBytes": 2588
+}

@@ -1,0 +1,16 @@
+{
+  "handle": "trust-missions",
+  "programId": "0xc9f57b8479cefd2acccd0513512e1c7f94bf74ae181836191d491135ab2ddd4e",
+  "owner": "0xa223c6a7e56cd7cfc6d62ea60d3d17dfee700e62658018ddcadc7ebd5976b62d",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/maixuancanh/agent-trust-layer/master/suite/trust-missions/artifacts/trust_missions.idl",
+  "tags": [
+    "missions",
+    "coordination",
+    "escrow",
+    "proof",
+    "trust-suite"
+  ],
+  "fetched": true,
+  "idlBytes": 2413
+}

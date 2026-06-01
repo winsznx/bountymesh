@@ -1,0 +1,16 @@
+{
+  "handle": "varabridge-v2",
+  "programId": "0xc86a25896d28b64bdec692e998b02fc8a0e50e12e9d18a69df1c5b3603e332ea",
+  "owner": "0xb21266daf5b67e4e7a2f2c782f57e14b39c9145d2574637340f08a8f689f8f6d",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/varabridge_2.idl",
+  "tags": [
+    "oracle",
+    "data",
+    "defi",
+    "automation",
+    "integrator"
+  ],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

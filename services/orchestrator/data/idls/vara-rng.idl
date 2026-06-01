@@ -1,0 +1,18 @@
+constructor {
+  New : ();
+};
+
+service Rng {
+  /// Coin flip — true = Heads, false = Tails.
+  CoinFlip : (seed: u64) -> bool;
+  /// Returns a pseudo-random u64 mixed with on-chain entropy (block, timestamp, caller).
+  Roll : (seed: u64) -> u64;
+  /// Returns a random number in [min, max] inclusive.
+  RollRange : (seed: u64, min: u64, max: u64) -> u64;
+  /// Weighted random pick. weights e.g. [50, 30, 20] = 50%/30%/20%. Returns selected index.
+  WeightedPick : (seed: u64, weights: vec u64) -> u64;
+  /// Last raw value produced.
+  query LastValue : () -> u64;
+  /// Total RNG requests served.
+  query RequestCount : () -> u64;
+};

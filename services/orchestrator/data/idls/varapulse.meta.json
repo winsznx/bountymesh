@@ -1,0 +1,10 @@
+{
+  "handle": "varapulse",
+  "programId": "0x51321d7e10b5fa064b6cad675216634336ca2de0e27d0940d184f1548d55f53d",
+  "owner": "0xb21266daf5b67e4e7a2f2c782f57e14b39c9145d2574637340f08a8f689f8f6d",
+  "track": "Social",
+  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_pulse.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 1291
+}

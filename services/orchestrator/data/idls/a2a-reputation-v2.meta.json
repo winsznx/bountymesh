@@ -1,0 +1,10 @@
+{
+  "handle": "a2a-reputation-v2",
+  "programId": "0x580b6bae88499c2595985acf7d8d320e3f0eaf5187f3dc47fd773c9c97b8f62a",
+  "owner": "0x084dd09fee9a6bd75720574dc4eb983f9d110be0f96a7b38de669ecbe1724944",
+  "track": "Economy",
+  "idlUrl": "https://gist.githubusercontent.com/0xKube/97e762f3bb50d7da5258195cff73fa9a/raw/293264fa5caed45fb6deb3c88766c32213709c03/a2a-reputation-v2.idl",
+  "tags": [],
+  "fetched": true,
+  "idlBytes": 9452
+}

@@ -1,0 +1,138 @@
+type Move = enum {
+  Rock,
+  Paper,
+  Scissors,
+};
+
+type RoundResult = struct {
+  player_move: Move,
+  house_move: Move,
+  outcome: Outcome,
+  new_rating: i32,
+};
+
+type Outcome = enum {
+  Win,
+  Loss,
+  Draw,
+};
+
+type LeaderboardEntry = struct {
+  player: actor_id,
+  rating: i32,
+};
+
+type MatchView = struct {
+  challenger: actor_id,
+  opponent: actor_id,
+  stake_vara: u128,
+  deadline_block: u32,
+  state: MatchState,
+};
+
+type MatchState = enum {
+  AwaitingOpponent,
+  AwaitingReveal,
+  Settled,
+  Refunded,
+};
+
+type PlayerStats = struct {
+  rating: i32,
+  games: u32,
+  wins: u32,
+  losses: u32,
+  draws: u32,
+};
+
+type Config = struct {
+  house_epsilon_bps: u64,
+  elo_k: i32,
+  house_rating: i32,
+  leaderboard_capacity: u32,
+  max_rate_age_blocks: u32,
+  rake_bps: u16,
+  reveal_deadline_blocks: u32,
+  min_stake_usd: u64,
+  max_stake_usd: u64,
+};
+
+constructor {
+  New : ();
+};
+
+service Game {
+  AcceptChallenge : (match_id: u64, move_commit: [u8, 32]) -> null;
+  Challenge : (opponent: actor_id, move_commit: [u8, 32], stake_usd: u64) -> u64;
+  ClaimTimeout : (match_id: u64) -> null;
+  Play : (player_move: Move) -> RoundResult;
+  Reveal : (match_id: u64, player_move: Move, salt: [u8, 32]) -> null;
+  query GetLeaderboard : (top: u32) -> vec LeaderboardEntry;
+  query GetMatch : (match_id: u64) -> opt MatchView;
+  query GetPlayer : (who: actor_id) -> opt PlayerStats;
+  query GetPot : () -> u128;
+
+  events {
+    MatchPlayed: struct {
+      match_id: u64,
+      player: actor_id,
+      player_move: Move,
+      house_move: Move,
+      outcome: Outcome,
+      new_rating: i32,
+    };
+    NewChampion: struct {
+      player: actor_id,
+      rating: i32,
+    };
+    ChallengeOpened: struct {
+      match_id: u64,
+      challenger: actor_id,
+      opponent: actor_id,
+      stake_vara: u128,
+      deadline_block: u32,
+    };
+    ChallengeAccepted: struct {
+      match_id: u64,
+      deadline_block: u32,
+    };
+    PvpResolved: struct {
+      match_id: u64,
+      winner: opt actor_id,
+      challenger_move: Move,
+      opponent_move: Move,
+      payout: u128,
+    };
+    MatchForfeited: struct {
+      match_id: u64,
+      winner: actor_id,
+      loser: actor_id,
+    };
+    MatchRefunded: struct {
+      match_id: u64
+    };
+  }
+};
+
+service Admin {
+  Pause : () -> null;
+  SeedPot : () -> null;
+  SetConfig : (config: Config) -> null;
+  SetVaraUsdRate : (rate: u128) -> null;
+  Unpause : () -> null;
+
+  events {
+    RateUpdated: struct {
+      rate: u128,
+      set_at_block: u32,
+    };
+    Paused;
+    Unpaused;
+    PotSeeded: struct {
+      amount: u128,
+      pot: u128,
+    };
+    ConfigUpdated;
+  }
+};
+

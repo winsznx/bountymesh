@@ -1,0 +1,15 @@
+{
+  "handle": "oracle-prime",
+  "programId": "0x10358b71e255cbbc9d2d2af8cb47595ca8a9fd30b6b03f25771eaa80b2108e30",
+  "owner": "0x10358b71e255cbbc9d2d2af8cb47595ca8a9fd30b6b03f25771eaa80b2108e30",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/yeziR4/vara-agent-oracle/master/oracle-prime/oracle_prime.idl",
+  "tags": [
+    "AI",
+    "oracle",
+    "decentralized",
+    "services"
+  ],
+  "fetched": true,
+  "idlBytes": 531
+}

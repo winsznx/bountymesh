@@ -1,0 +1,19 @@
+{
+  "handle": "bountymesh-rep",
+  "programId": "0x6b59628b2b2f7432e4c2e714b100dcd28bc3e5c8d75358695294da989463ef03",
+  "owner": "0xa2d2b8caeeddf26edd3a08d6a2e8a0313f7d6c892c53a1b06015b328153a0b1f",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/winsznx/bountymesh/main/idl/bountymesh_rep.idl",
+  "tags": [
+    "reputation",
+    "registry",
+    "economy",
+    "bounties",
+    "agents",
+    "track-03",
+    "companion-to-bountymesh",
+    "permissionless"
+  ],
+  "fetched": true,
+  "idlBytes": 1382
+}

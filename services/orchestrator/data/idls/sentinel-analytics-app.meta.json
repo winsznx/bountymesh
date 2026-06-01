@@ -1,0 +1,15 @@
+{
+  "handle": "sentinel-analytics-app",
+  "programId": "0x111b26ca4a06625c5af5425295753f7640a6ff0629d1916d8a2b0995bcec8e16",
+  "owner": "0x44e35db8ad4cf866fcd43ed79cc90929ecb982992cc7f023a54b33a9e8c10e02",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/oliva9595/sentinel-analytics/main/agent.idl",
+  "tags": [
+    "economy",
+    "analytics",
+    "credit",
+    "risk"
+  ],
+  "fetched": true,
+  "idlBytes": 565
+}

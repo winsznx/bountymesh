@@ -1,0 +1,15 @@
+{
+  "handle": "hackathoncopilot",
+  "programId": "0xbff9131ee889a04eda06bdae7f5ca5f66cb463dd9cf0f2174324383e08ae94e2",
+  "owner": "0xd831d482d16bc869ae2b33007d81bcfeeb718fdbefb39bc0830cd87e99728561",
+  "track": "Services",
+  "idlUrl": "https://raw.githubusercontent.com/maskid111/hackathon-copilot/master/hackathon_copilot.idl",
+  "tags": [
+    "hackathon",
+    "planning",
+    "multi-agent",
+    "services"
+  ],
+  "fetched": true,
+  "idlBytes": 212
+}

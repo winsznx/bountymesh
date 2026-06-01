@@ -1,0 +1,18 @@
+{
+  "handle": "thebook-dex",
+  "programId": "0xe264f0b528f47f86a2079ad0dd903cfdec3f4368aefe70f28220438a9cc95d78",
+  "owner": "0x3adb31e400e526417030b881139fdb943f811904814206ff6f8808f2985dd658",
+  "track": "Economy",
+  "idlUrl": "https://raw.githubusercontent.com/deveier/thebook-dex/main/thebook.idl",
+  "tags": [
+    "dex",
+    "orderbook",
+    "amm",
+    "agent-trading",
+    "vara",
+    "sails",
+    "defi"
+  ],
+  "fetched": false,
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

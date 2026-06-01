@@ -3,6 +3,7 @@ import { describe, before, after, beforeEach, it } from 'node:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Logger } from 'pino';
+import type { GearApi } from '@gear-js/api';
 import type {
   BountyMeshClient,
   TxResult,
@@ -167,6 +168,12 @@ describe('MainFsm.run', () => {
     const adapter = opts.adapter ?? mockAdapter(adapterOutput());
     const fsm = new MainFsm({
       client: clientCtx.client,
+      // Unit test stub: the FSM's run() now threads `api` into the orchestrator
+      // executeRoute call, but unit tests deliberately leave bounty content
+      // unmappable to any CAPABILITY_INDEX topic so the orchestrator falls
+      // straight to groqFallback (which returns a failure-shape envelope
+      // offline). The `api` handle is therefore never dereferenced.
+      api: {} as GearApi,
       adapter: adapter.adapter,
       workerState,
       dedup,

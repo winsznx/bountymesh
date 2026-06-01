@@ -1,0 +1,35 @@
+type Question = struct {
+  asker: actor_id,
+  query: str,
+  answer: opt str,
+};
+
+type Error = enum {
+  InsufficientPayment,
+  SelfLoop,
+  ArithmeticOverflow,
+  Unauthorized,
+  NotFound,
+  AlreadyFulfilled,
+};
+
+type AskResult = enum {
+  Ok: u64,
+  Err: Error,
+};
+
+type FulfillResult = enum {
+  Ok,
+  Err: Error,
+};
+
+constructor {
+  New : ();
+};
+
+service Oracle {
+  Ask : (query: str) -> AskResult;
+  Fulfill : (id: u64, answer: str) -> FulfillResult;
+  query GetQuestion : (id: u64) -> opt Question;
+  query GetFee : () -> u128;
+};

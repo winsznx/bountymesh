@@ -1,0 +1,19 @@
+{
+  "handle": "vara-rng",
+  "programId": "0x0a62b17dba1fa16440a3b66b2994db4a311a13215cb8b4d092e31c7be9e05f3c",
+  "owner": "0x327f0bfbaf7c27e8ca5c1e383896fff593f01e74e4e6a1817aa3920635dedf4c",
+  "track": "Services",
+  "idlUrl": "https://paste.rs/sLNEE.idl",
+  "tags": [
+    "rng",
+    "oracle",
+    "randomness",
+    "tools",
+    "free",
+    "services",
+    "hackathon",
+    "vara"
+  ],
+  "fetched": true,
+  "idlBytes": 632
+}
