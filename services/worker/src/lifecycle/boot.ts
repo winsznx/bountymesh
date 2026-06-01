@@ -28,6 +28,10 @@ import { WorkerStateFile } from '../state/worker-state.js';
 import { recoverInflight } from './resume.js';
 import { ShutdownSequence, type ShutdownStep } from './shutdown.js';
 import type { BootHandle, BootOptions, BootStage } from './types.js';
+import { getVaraUsdRate, getInfinitebountyOpen } from '../external.js';
+
+const EXTERNAL_TICK_MS = 5 * 60 * 1000;
+const EXTERNAL_PRICE_EVERY_N_CYCLES = 12;
 
 async function defaultCreateGearApi(rpcUrl: string): Promise<GearApi> {
   return GearApi.create({ providerAddress: rpcUrl });
@@ -171,6 +175,82 @@ export async function boot(opts: BootOptions = {}): Promise<BootHandle> {
     await monitor.start();
     rollback.push({ name: 'monitor-stop', fn: () => monitor.stop() });
 
+    // ----- B-6.5: external ecosystem side-loop -----
+    // Purely additive: drives one signed extrinsic to @varabridge (≤1/hour)
+    // and, when the claim queue is idle, one read-only query against
+    // @infinite-bounty-v3 per tick. Failures are swallowed inside external.ts;
+    // this loop never throws and never touches FSM state.
+    let externalCycleIndex = 0;
+    const externalTick = async (): Promise<void> => {
+      const idx = externalCycleIndex++;
+      try {
+        if (idx % EXTERNAL_PRICE_EVERY_N_CYCLES === 0) {
+          const price = await getVaraUsdRate(api, signer.pair);
+          if (price !== null) {
+            logger.info({
+              op: 'external',
+              target: 'varabridge',
+              method: 'GetPrice',
+              symbol: price.symbol,
+              usd: price.usd,
+              txHash: price.txHash,
+              cycleIndex: idx,
+            });
+          } else {
+            logger.warn({
+              op: 'external',
+              target: 'varabridge',
+              method: 'GetPrice',
+              result: 'null',
+              cycleIndex: idx,
+            });
+          }
+        }
+        if (!serializer.isInflight()) {
+          const summary = await getInfinitebountyOpen(api, 10);
+          if (summary !== null) {
+            logger.info({
+              op: 'external',
+              target: 'infinite-bounty-v3',
+              method: 'GetBountiesByStatus',
+              status: 'Open',
+              count: summary.count,
+              ids: summary.ids,
+              cycleIndex: idx,
+              msg: `external bounty discovery: ${summary.count} open on infinite-bounty-v3`,
+            });
+          } else {
+            logger.warn({
+              op: 'external',
+              target: 'infinite-bounty-v3',
+              method: 'GetBountiesByStatus',
+              result: 'null',
+              cycleIndex: idx,
+            });
+          }
+        }
+      } catch (err) {
+        logger.error(
+          {
+            op: 'external',
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'external side-loop tick threw — swallowed',
+        );
+      }
+    };
+    const externalInterval = setInterval(() => {
+      void externalTick();
+    }, EXTERNAL_TICK_MS);
+    rollback.push({
+      name: 'external-loop-stop',
+      fn: async () => {
+        clearInterval(externalInterval);
+      },
+    });
+    // Fire the first tick immediately (don't wait 5 min for the first price call).
+    void externalTick();
+
     // ----- B-7: ready -----
     enter('B-7', 'ready');
     logger.info({
@@ -189,6 +269,12 @@ export async function boot(opts: BootOptions = {}): Promise<BootHandle> {
       [
         { name: 'discovery-unsub', fn: () => discoveryHandle.unsub() },
         { name: 'monitor-stop', fn: () => monitor.stop() },
+        {
+          name: 'external-loop-stop',
+          fn: async () => {
+            clearInterval(externalInterval);
+          },
+        },
         {
           name: 'mutex-flush',
           fn: async () => {

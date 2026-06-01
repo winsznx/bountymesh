@@ -59,9 +59,10 @@ import { SailsIdlParser } from 'sails-js-parser';
 import pino from 'pino';
 import { ResponderState } from './state.js';
 import { findOurExistingReply, getRecentMentions, type ChatMention, type OurAppHandle } from './indexer.js';
-import { composeReply } from './groq.js';
+import { composeReply, type EcosystemContext } from './groq.js';
 import { fetchSupplementary } from './supplementary.js';
 import { postChatReply } from './post.js';
+import { getVaraUsdRate, getAgentPulseFeed, type AgentPulsePost } from './external.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
@@ -205,13 +206,14 @@ function sleep(ms: number): Promise<void> {
 
 async function pollAndRespond(args: {
   state: ResponderState;
+  api: GearApi;
   sails: Sails;
   feedsSails: Sails | null;
   signer: KeyringPair;
   voucherId: `0x${string}`;
   winsznxHex: string;
 }): Promise<void> {
-  const { state, sails, feedsSails, signer, voucherId, winsznxHex } = args;
+  const { state, api, sails, feedsSails, signer, voucherId, winsznxHex } = args;
   const lastProcessed = state.getLastProcessedAt();
   const fallback = new Date(Date.now() - 30 * 60 * 1000);
   const since = lastProcessed && lastProcessed > fallback ? lastProcessed : fallback;
@@ -229,6 +231,23 @@ async function pollAndRespond(args: {
     return;
   }
   log.info({ count: mentions.length }, 'mentions returned');
+
+  let pulseFeed: AgentPulsePost[] | null = null;
+  try {
+    pulseFeed = await getAgentPulseFeed(api, 3);
+    log.info(
+      { op: 'ecosystem_pulse_query', target: 'agent-pulse', posts: pulseFeed?.length ?? 0 },
+      'fetched agent-pulse feed (query, no extrinsic)',
+    );
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'agent-pulse feed fetch failed; continuing without it',
+    );
+  }
+
+  let varaUsd: number | null = null;
+  let varaBridgeCalled = false;
 
   let repliesThisCycle = 0;
   let newestProcessedTs: Date | null = null;
@@ -260,6 +279,41 @@ async function pollAndRespond(args: {
       'composing reply',
     );
 
+    if (!varaBridgeCalled) {
+      varaBridgeCalled = true;
+      try {
+        const rate = await getVaraUsdRate(api, signer, 'VARA');
+        if (rate) {
+          varaUsd = rate.usd;
+          log.info(
+            {
+              op: 'integration_out',
+              target: 'varabridge',
+              method: 'VaraBridge/GetPrice',
+              kind: 'function',
+              metricCounting: true,
+              symbol: rate.symbol,
+              usd: rate.usd,
+              txHash: rate.txHash,
+            },
+            'varabridge.GetPrice extrinsic sent (integrationsOutWalletInitiated)',
+          );
+        } else {
+          log.warn(
+            { op: 'integration_out', target: 'varabridge', method: 'VaraBridge/GetPrice' },
+            'varabridge.GetPrice returned null',
+          );
+        }
+      } catch (err) {
+        log.warn(
+          { err: err instanceof Error ? err.message : String(err), target: 'varabridge' },
+          'varabridge.GetPrice failed; continuing without VARA/USD',
+        );
+      }
+    }
+
+    const ecosystemContext: EcosystemContext = { varaUsd, pulseFeed };
+
     let replyBody: string;
     try {
       const supp = await fetchSupplementary(ourApp, feedsSails);
@@ -268,6 +322,7 @@ async function pollAndRespond(args: {
         mentionedApp: ourApp,
         authorHandle: m.authorHandle,
         supplementaryState: supp,
+        ecosystemContext,
       });
     } catch (err) {
       log.warn(
@@ -405,7 +460,7 @@ async function main(): Promise<void> {
     }
 
     try {
-      await pollAndRespond({ state, sails, feedsSails, signer: kp, voucherId, winsznxHex });
+      await pollAndRespond({ state, api, sails, feedsSails, signer: kp, voucherId, winsznxHex });
     } catch (err) {
       log.error({ err: err instanceof Error ? err.message : String(err) }, 'cycle failed');
     }

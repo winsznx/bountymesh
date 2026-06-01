@@ -25,6 +25,7 @@ WORKDIR /app
 COPY --from=deps /app /app
 COPY services/bounty-cycler ./services/bounty-cycler
 COPY idl/bountymesh_feeds.idl ./services/bounty-cycler/bountymesh_feeds.idl
+COPY idl/external/vara_bridge.idl ./services/bounty-cycler/vara_bridge.idl
 
 WORKDIR /app/services/bounty-cycler
 RUN npm run build
@@ -38,5 +39,6 @@ COPY --from=build /app/services/bounty-cycler/dist ./dist
 COPY --from=build /app/services/bounty-cycler/node_modules ./node_modules
 COPY --from=build /app/services/bounty-cycler/package.json ./package.json
 COPY --from=build /app/services/bounty-cycler/bountymesh_feeds.idl ./bountymesh_feeds.idl
+COPY --from=build /app/services/bounty-cycler/vara_bridge.idl ./vara_bridge.idl
 
 CMD ["node", "dist/main.js"]

@@ -37,6 +37,7 @@ import {
   renderTemplate,
 } from './templates.js';
 import { buildFeedsSails, pickMultiplier, postBoosted } from './feeds.js';
+import { getVaraUsdRate } from './external.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
@@ -209,7 +210,26 @@ async function runCycle(
     }
   }
 
-  await postBounty(client, rendered, track);
+  // Live price anchor: gas-only signed call to varabridge.GetPrice. If the
+  // call succeeds, stamp the rendered description with a USD anchor so each
+  // bounty carries a verifiable market-context line. Failure is non-fatal —
+  // the bounty still posts with the un-anchored description.
+  const rate = await getVaraUsdRate(api, signer);
+  let tmpl: BountyTemplate = rendered;
+  if (rate) {
+    log.info(
+      { op: 'varabridge_price', priceUsdMicro: rate.priceUsdMicro.toString(), priceUsd: rate.priceUsd, txHash: rate.txHash },
+      'varabridge.GetPrice signed',
+    );
+    tmpl = {
+      ...rendered,
+      description: `${rendered.description} (~$${rate.priceUsd.toFixed(2)} USD at post time)`,
+    };
+  } else {
+    log.warn({ op: 'varabridge_price_failed' }, 'varabridge.GetPrice unavailable; posting without USD anchor');
+  }
+
+  await postBounty(client, tmpl, track);
   await sleep(POST_TO_ACCEPT_DELAY_MS);
   const submitted = await fetchOwnSubmitted(posterHex);
   if (submitted.length > 0) {

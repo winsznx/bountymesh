@@ -10,6 +10,7 @@
 
 import type { OurAppHandle } from './indexer.js';
 import { formatVara, type SupplementaryState } from './supplementary.js';
+import type { AgentPulsePost } from './external.js';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
@@ -17,11 +18,17 @@ const GROQ_MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
 interface GroqChoice { message: { content: string } }
 interface GroqResponse { choices?: GroqChoice[]; error?: { message: string } }
 
+export interface EcosystemContext {
+  varaUsd: number | null;
+  pulseFeed: AgentPulsePost[] | null;
+}
+
 export interface ComposeReplyInput {
   originalMessage: string;
   mentionedApp: OurAppHandle;
   authorHandle: string | null;
   supplementaryState: SupplementaryState;
+  ecosystemContext?: EcosystemContext;
 }
 
 const SYSTEM_PROMPT = `You are the on-chain voice for one of three BountyMesh Applications on the Vara Agent Network. You write short chat replies (1-3 sentences) when another agent mentions you.
@@ -66,6 +73,9 @@ Original: "Reminder: @bountymesh has the contract-enforced two-phase settlement 
 SupplementaryState: { app: bountymesh, openCount: 8, totalCount: 47, recentSettle: { bountyId: "32", rewardAtomic: 500000000000, workerShortHex: "0x14e8…2b3a" } }
 Reply: Confirmed — last settle was bounty #32, 0.5 VARA paid out to 0x14e8…2b3a directly from program escrow. 8 still open if anyone wants the same flow.
 
+ECOSYSTEM CONTEXT (optional, may be absent)
+- If an ecosystemContext block appears in the user message, it carries facts pulled from sibling agents (a live VARA/USD rate from @varabridge, recent posts from @agent-pulse). Use them only if they reinforce the reply naturally — never force them in, never invent new numbers from them. If they don't fit, ignore them.
+
 OUTPUT FORMAT
 Return ONLY the reply text. No JSON, no preamble, no quotes around it.`;
 
@@ -106,16 +116,23 @@ export async function composeReply(input: ComposeReplyInput): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY not set');
 
-  const userPrompt = [
+  const lines = [
     `You are replying as @${input.mentionedApp}.`,
     `Original message author: @${input.authorHandle ?? '<unknown>'}`,
     `Original message body:`,
     input.originalMessage,
     ``,
     `supplementaryState: ${formatSupplementary(input.supplementaryState)}`,
-    ``,
-    `Write the reply now. Plain prose, 1-3 sentences, grounded only in supplementaryState.`,
-  ].join('\n');
+  ];
+  const ecoBlock = formatEcosystemContext(input.ecosystemContext);
+  if (ecoBlock) {
+    lines.push('', `ecosystemContext: ${ecoBlock}`);
+  }
+  lines.push(
+    '',
+    'Write the reply now. Plain prose, 1-3 sentences, grounded only in supplementaryState (ecosystemContext is supporting flavor only).',
+  );
+  const userPrompt = lines.join('\n');
 
   const res = await fetch(GROQ_URL, {
     method: 'POST',
@@ -140,6 +157,23 @@ export async function composeReply(input: ComposeReplyInput): Promise<string> {
   const content = body.choices?.[0]?.message?.content?.trim();
   if (!content) throw new Error('Groq returned empty content');
   return sanitizeReply(content);
+}
+
+function formatEcosystemContext(ctx: EcosystemContext | undefined): string | null {
+  if (!ctx) return null;
+  const hasVara = typeof ctx.varaUsd === 'number' && Number.isFinite(ctx.varaUsd) && ctx.varaUsd > 0;
+  const hasFeed = Array.isArray(ctx.pulseFeed) && ctx.pulseFeed.length > 0;
+  if (!hasVara && !hasFeed) return null;
+  return JSON.stringify({
+    varaUsd: hasVara ? Number((ctx.varaUsd as number).toFixed(4)) : null,
+    recentPulsePosts: hasFeed
+      ? ctx.pulseFeed!.map((p) => ({
+          id: p.id,
+          author: p.authorShortHex,
+          body: p.bodyShort,
+        }))
+      : null,
+  });
 }
 
 function sanitizeReply(raw: string): string {

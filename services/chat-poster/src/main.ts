@@ -53,6 +53,7 @@ import {
   pickGenericMentions,
   pickGenericTemplate,
   pickInvitationTemplate,
+  renderAanTvCoverage,
   renderGeneric,
   renderInvitation,
   renderOldestOpen,
@@ -62,6 +63,14 @@ import {
   type RecentWithdraw,
 } from './templates.js';
 import { matchAgents } from './agent-tags.js';
+import {
+  buildAanTvSails,
+  buildVaraBridgeSails,
+  getAanTvCoverageQueue,
+  getVaraUsdRate,
+  requestAanTvCoverage,
+  type CoverageQueuePage,
+} from './external.js';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
@@ -352,6 +361,21 @@ async function main(): Promise<void> {
   sails.setProgramId(VARA_AGENTS_PROGRAM_ID);
   log.info({ chatMethods: Object.keys(sails.services.Chat.functions) }, 'sails parsed');
 
+  let varaBridgeSails: Sails | null = null;
+  let aanTvSails: Sails | null = null;
+  try {
+    varaBridgeSails = await buildVaraBridgeSails(api);
+    log.info({ pid: '0xfb7ed5a7…cc1fcb4' }, 'varabridge sails ready');
+  } catch (err) {
+    log.warn({ err: err instanceof Error ? err.message : String(err) }, 'varabridge sails init failed — feature disabled');
+  }
+  try {
+    aanTvSails = await buildAanTvSails(api);
+    log.info({ pid: '0xae7f692a…3147d6f' }, 'aan-tv sails ready');
+  } catch (err) {
+    log.warn({ err: err instanceof Error ? err.message : String(err) }, 'aan-tv sails init failed — feature disabled');
+  }
+
   const mentions = await resolveHandles(sails, MENTION_POOL);
   if (mentions.size === 0) {
     log.error('no mentions resolvable; aborting');
@@ -377,6 +401,11 @@ async function main(): Promise<void> {
   /** bounty_id → invitations already posted across this process lifetime */
   const invitationCounts = new Map<string, number>();
 
+  /** rolling 24-hour window of aan-tv RequestCoverage timestamps (ms) */
+  const coverageRequestLog: number[] = [];
+  const COVERAGE_DAILY_CAP = 4;
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
   let cycleIndex = 0;
   while (!shuttingDown) {
     const cycleStart = Date.now();
@@ -390,8 +419,94 @@ async function main(): Promise<void> {
       }
     }
 
+    // varabridge.GetPrice(VARA) — runs every cycle, generates an
+    // integrationsOutWalletInitiated Interaction row at varabridge.
+    // Wrapped in try/catch so failures never break chat posting.
+    if (varaBridgeSails) {
+      try {
+        const rate = await getVaraUsdRate(varaBridgeSails, kp);
+        if (rate) {
+          log.info(
+            { op: 'varabridge_getprice', usd: rate.usd.toFixed(6), change24hBps: rate.change24hBps, txHash: rate.txHash },
+            'varabridge price fetched',
+          );
+        } else {
+          log.warn({ op: 'varabridge_getprice' }, 'varabridge returned null price');
+        }
+      } catch (err) {
+        log.warn({ op: 'varabridge_getprice', err: err instanceof Error ? err.message : String(err) }, 'varabridge call failed');
+      }
+    }
+
+    // Every 4th cycle: read aan-tv coverage queue, optionally request
+    // coverage for our latest open bounty. Capped at 4 RequestCoverage
+    // calls per rolling 24h (0.4 VARA/day max).
+    let coveragePage: CoverageQueuePage | null = null;
+    let requestedCoverageId: string | null = null;
+    const isCoverageCycle = aanTvSails !== null && cycleIndex % 4 === 0;
+    if (isCoverageCycle && aanTvSails) {
+      coveragePage = await getAanTvCoverageQueue(aanTvSails, 8);
+      if (coveragePage) {
+        log.info(
+          { op: 'aan_tv_get_queue', items: coveragePage.items.length },
+          'aan-tv coverage queue fetched',
+        );
+      } else {
+        log.warn({ op: 'aan_tv_get_queue' }, 'aan-tv coverage queue fetch failed');
+      }
+
+      const now = Date.now();
+      while (coverageRequestLog.length > 0 && now - coverageRequestLog[0] > ONE_DAY_MS) {
+        coverageRequestLog.shift();
+      }
+      if (coverageRequestLog.length < COVERAGE_DAILY_CAP) {
+        try {
+          const openBounties = await fetchOpenBounties();
+          const latest = openBounties[0] ?? null;
+          const hint = latest
+            ? `bountymesh just posted bounty #${latest.id}: ${latest.title.slice(0, 80)}`
+            : 'bountymesh ecosystem update';
+          const result = await requestAanTvCoverage(
+            aanTvSails,
+            kp,
+            'BountyCompleted',
+            hint,
+            BOUNTYMESH_PROGRAM_ID,
+          );
+          if (result) {
+            coverageRequestLog.push(now);
+            requestedCoverageId = String(result.coverageId);
+            log.info(
+              { op: 'aan_tv_request_coverage', coverageId: requestedCoverageId, txHash: result.txHash, dailyUsed: coverageRequestLog.length },
+              'aan-tv coverage requested',
+            );
+          }
+        } catch (err) {
+          log.warn({ op: 'aan_tv_request_coverage', err: err instanceof Error ? err.message : String(err) }, 'aan-tv RequestCoverage failed');
+        }
+      } else {
+        log.info({ op: 'aan_tv_request_coverage_capped', cap: COVERAGE_DAILY_CAP }, 'aan-tv daily cap reached; skipping');
+      }
+    }
+
     try {
       let posted = false;
+
+      // aan-tv coverage post takes precedence on coverage cycles when
+      // the queue has entries — keeps the post anchored to fresh
+      // off-chain narration data.
+      if (isCoverageCycle && coveragePage && coveragePage.items.length > 0) {
+        const { body, mentions: pickedHandles } = renderAanTvCoverage(
+          { queuedCount: coveragePage.items.length, ourCoverageId: requestedCoverageId },
+          cycleIndex,
+        );
+        const pickedRefs = pickedHandles
+          .filter((h) => mentions.has(h))
+          .map((h) => mentions.get(h)!.ref);
+        await postChat(sails, kp, voucherId, body, author, pickedRefs);
+        posted = true;
+        log.info({ op: 'aan_tv_coverage_post', queued: coveragePage.items.length }, 'posted aan-tv coverage narration');
+      }
 
       // Rotate modes: even cycles favour data-driven (recent settle / oldest
       // open), odd cycles favour invitation. Each branch independently falls

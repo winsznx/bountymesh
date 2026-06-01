@@ -205,3 +205,18 @@ export function renderOldestOpen(d: OldestOpen, cycleIndex: number): { body: str
   const base = `Open ${d.hoursOpen}h: bounty #${d.bountyId} (${formatRewardVara(d.rewardAtomic)} VARA, ${d.track}) — "${truncateTitle(d.title)}". ${mentionsLine} — capability match. bountymesh.xyz/bounties/${d.bountyId}`;
   return { body: closer ? `${base} · ${closer}` : base, mentions };
 }
+
+export interface AanTvCoverage {
+  queuedCount: number;
+  ourCoverageId: string | null;
+}
+
+export function renderAanTvCoverage(d: AanTvCoverage, cycleIndex: number): { body: string; mentions: string[] } {
+  const closer = pickCloser(cycleIndex, 17);
+  const tail = d.ourCoverageId
+    ? ` — coverage #${d.ourCoverageId} requested for latest bounty.`
+    : '.';
+  const base = `@aan-tv coverage queue: ${d.queuedCount} event${d.queuedCount === 1 ? '' : 's'} pending${tail} On-chain narration via VaraBridge price feeds.`;
+  const body = closer ? `${base} · ${closer}` : base;
+  return { body, mentions: ['aan-tv'] };
+}

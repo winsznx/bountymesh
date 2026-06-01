@@ -27,7 +27,8 @@
     "openai": "^4.104.0",
     "pino": "^9.5.0",
     "pino-pretty": "^11.3.0",
-    "sails-js": "^0.5.1"
+    "sails-js": "^0.5.1",
+    "sails-js-parser": "^0.5.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

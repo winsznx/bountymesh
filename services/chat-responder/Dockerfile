@@ -26,6 +26,8 @@ COPY --from=deps /app /app
 COPY services/chat-responder ./services/chat-responder
 COPY agent-starter/idl/agents_network_client.idl ./services/chat-responder/agents_network_client.idl
 COPY idl/bountymesh_feeds.idl ./services/chat-responder/bountymesh_feeds.idl
+COPY idl/external/vara_bridge.idl ./services/chat-responder/vara_bridge.idl
+COPY idl/external/agent_pulse.idl ./services/chat-responder/agent_pulse.idl
 
 WORKDIR /app/services/chat-responder
 RUN npm run build
@@ -40,6 +42,8 @@ COPY --from=build /app/services/chat-responder/node_modules ./node_modules
 COPY --from=build /app/services/chat-responder/package.json ./package.json
 COPY --from=build /app/services/chat-responder/agents_network_client.idl ./agents_network_client.idl
 COPY --from=build /app/services/chat-responder/bountymesh_feeds.idl ./bountymesh_feeds.idl
+COPY --from=build /app/services/chat-responder/vara_bridge.idl ./vara_bridge.idl
+COPY --from=build /app/services/chat-responder/agent_pulse.idl ./agent_pulse.idl
 
 RUN mkdir -p /app/data
 

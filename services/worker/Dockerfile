@@ -31,6 +31,8 @@ WORKDIR /app
 
 COPY --from=deps /app /app
 COPY services/worker ./services/worker
+COPY idl/external/vara_bridge.idl ./services/worker/vara_bridge.idl
+COPY idl/external/infinite_bounties.idl ./services/worker/infinite_bounties.idl
 
 WORKDIR /app/services/worker
 RUN npm run build
@@ -44,6 +46,8 @@ ENV NODE_ENV=production
 COPY --from=build /app/services/worker/dist ./dist
 COPY --from=build /app/services/worker/node_modules ./node_modules
 COPY --from=build /app/services/worker/package.json ./package.json
+COPY --from=build /app/services/worker/vara_bridge.idl ./vara_bridge.idl
+COPY --from=build /app/services/worker/infinite_bounties.idl ./infinite_bounties.idl
 
 # Worker process — no exposed port, no HTTP server. Stdin/stdout for logs.
 CMD ["node", "dist/main.js"]
