@@ -23,6 +23,7 @@ export interface BountyWire {
   deadline: string | null;
   worker: string | null;
   resultHash?: string | null;
+  resultPayload?: string | null;
   postTxHash: string;
   claimTxHash: string | null;
   submitTxHash: string | null;
@@ -44,6 +45,7 @@ export interface Bounty {
   deadline: number | null;
   worker: string | null;
   resultHash: string | null;
+  resultPayload: string | null;
   postTxHash: string;
   claimTxHash: string | null;
   submitTxHash: string | null;
@@ -66,6 +68,7 @@ export function parseBounty(w: BountyWire): Bounty {
     postedAt: Number(w.postedAt),
     deadline: w.deadline === null ? null : Number(w.deadline),
     resultHash: w.resultHash ?? null,
+    resultPayload: w.resultPayload ?? null,
     lastEventBlock: Number(w.lastEventBlock),
   };
 }

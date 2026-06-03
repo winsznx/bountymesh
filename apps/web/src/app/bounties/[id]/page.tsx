@@ -56,7 +56,7 @@ export default function BountyDetailPage({
           <BountyAcceptanceCriteria bounty={bounty} />
           <BountyEventTimeline events={events} />
           {ENVELOPE_STATES.has(bounty.status) && (
-            <EnvelopeViewer bountyId={bounty.id} resultHash={bounty.resultHash} />
+            <EnvelopeViewer bountyId={bounty.id} resultHash={bounty.resultHash} resultPayload={bounty.resultPayload} />
           )}
         </>
       )}

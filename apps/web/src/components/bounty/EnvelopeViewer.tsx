@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +11,8 @@ import type { Envelope } from "@/lib/envelope/types";
 type Props = {
   bountyId: bigint;
   resultHash: string | null;
+  /** Canonical-JSON envelope string as projected from the on-chain result_payload field. */
+  resultPayload: string | null;
 };
 
 interface EnvelopePayload {
@@ -18,40 +21,31 @@ interface EnvelopePayload {
   pretty: string;
 }
 
-async function fetchEnvelope(bountyId: bigint): Promise<EnvelopePayload> {
-  const res = await fetch(`/envelopes/${bountyId.toString()}.json`);
-  if (!res.ok) {
-    throw new Error("not-available");
-  }
-  const raw = await res.text();
+function buildEnvelopePayload(raw: string | null): EnvelopePayload | null {
+  if (!raw) return null;
   let parsed: Envelope | null = null;
   let pretty = raw;
   try {
     parsed = JSON.parse(raw) as Envelope;
     pretty = JSON.stringify(parsed, null, 2);
   } catch {
-    // raw is not JSON-parseable; keep raw text as pretty too
+    // raw isn't JSON-parseable; keep raw text as pretty
   }
   return { raw, parsed, pretty };
 }
 
-export function EnvelopeViewer({ bountyId, resultHash }: Props) {
-  const envelopeQuery = useQuery({
-    queryKey: ["envelope", bountyId.toString()],
-    queryFn: () => fetchEnvelope(bountyId),
-    staleTime: Infinity,
-    retry: 0,
-  });
+export function EnvelopeViewer({ bountyId, resultHash, resultPayload }: Props) {
+  const envelope = useMemo(() => buildEnvelopePayload(resultPayload), [resultPayload]);
 
   const verifyQuery = useQuery({
-    queryKey: ["envelope-hash", bountyId.toString(), envelopeQuery.data?.raw ?? null],
+    queryKey: ["envelope-hash", bountyId.toString(), envelope?.raw ?? null],
     queryFn: async () => {
-      if (!envelopeQuery.data) throw new Error("no envelope");
-      if (!envelopeQuery.data.parsed) throw new Error("envelope not JSON");
-      const canonical = canonicalJson(envelopeQuery.data.parsed);
+      if (!envelope) throw new Error("no envelope");
+      if (!envelope.parsed) throw new Error("envelope not JSON");
+      const canonical = canonicalJson(envelope.parsed);
       return await sha256Hex(canonical);
     },
-    enabled: !!envelopeQuery.data?.parsed,
+    enabled: !!envelope?.parsed,
     staleTime: Infinity,
   });
 
@@ -64,8 +58,8 @@ export function EnvelopeViewer({ bountyId, resultHash }: Props) {
   };
 
   const onCopyEnvelope = () => {
-    if (!envelopeQuery.data) return;
-    navigator.clipboard.writeText(envelopeQuery.data.raw).then(
+    if (!envelope) return;
+    navigator.clipboard.writeText(envelope.raw).then(
       () => toast.success("Envelope JSON copied"),
       () => toast.error("Copy failed"),
     );
@@ -98,21 +92,14 @@ export function EnvelopeViewer({ bountyId, resultHash }: Props) {
             )}
           </div>
           <VerificationBadge
-            envelope={envelopeQuery.data ?? null}
-            envelopeError={envelopeQuery.error}
-            envelopeLoading={envelopeQuery.isLoading}
+            envelope={envelope}
             computedHash={verifyQuery.data ?? null}
             computedHashLoading={verifyQuery.isFetching}
             onChainHash={resultHash}
           />
         </div>
 
-        <EnvelopeBody
-          envelope={envelopeQuery.data ?? null}
-          envelopeError={envelopeQuery.error}
-          envelopeLoading={envelopeQuery.isLoading}
-          onCopy={onCopyEnvelope}
-        />
+        <EnvelopeBody envelope={envelope} onCopy={onCopyEnvelope} />
       </div>
     </section>
   );
@@ -120,22 +107,17 @@ export function EnvelopeViewer({ bountyId, resultHash }: Props) {
 
 function VerificationBadge({
   envelope,
-  envelopeError,
-  envelopeLoading,
   computedHash,
   computedHashLoading,
   onChainHash,
 }: {
   envelope: EnvelopePayload | null;
-  envelopeError: Error | null;
-  envelopeLoading: boolean;
   computedHash: `0x${string}` | null;
   computedHashLoading: boolean;
   onChainHash: string | null;
 }) {
-  if (envelopeLoading) return <Pill tone="slate" icon={<Loader2 className="h-3 w-3 animate-spin" aria-hidden />}>Loading envelope</Pill>;
-  if (envelopeError) return <Pill tone="slate">Envelope not available</Pill>;
-  if (!envelope?.parsed) return <Pill tone="orange">Envelope not JSON</Pill>;
+  if (!envelope) return <Pill tone="slate">Awaiting submission</Pill>;
+  if (!envelope.parsed) return <Pill tone="orange">Envelope not JSON</Pill>;
   if (!onChainHash) return <Pill tone="slate">No on-chain hash to verify against</Pill>;
   if (computedHashLoading || !computedHash) {
     return <Pill tone="slate" icon={<Loader2 className="h-3 w-3 animate-spin" aria-hidden />}>Verifying…</Pill>;
@@ -148,26 +130,18 @@ function VerificationBadge({
 
 function EnvelopeBody({
   envelope,
-  envelopeError,
-  envelopeLoading,
   onCopy,
 }: {
   envelope: EnvelopePayload | null;
-  envelopeError: Error | null;
-  envelopeLoading: boolean;
   onCopy: () => void;
 }) {
-  if (envelopeLoading) {
-    return <div className="h-24 animate-pulse rounded-sm bg-ash-white" />;
-  }
-  if (envelopeError) {
+  if (!envelope) {
     return (
       <p className="py-4 text-sm text-abyssal-ink/40">
-        Envelope not available — payload may not be indexed yet.
+        Worker has not submitted yet — envelope will appear here once the on-chain Submit lands.
       </p>
     );
   }
-  if (!envelope) return null;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">

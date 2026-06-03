@@ -42,6 +42,7 @@ export const BOUNTY_BY_ID = gql`
       deadline
       worker
       resultHash
+      resultPayload
       postTxHash
       claimTxHash
       submitTxHash
