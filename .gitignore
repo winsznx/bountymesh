@@ -49,6 +49,10 @@ services/worker/worker.history.jsonl
 # Internal planning docs — moved to internal/
 internal/
 
+# Workflow-agent debug scratch (services/indexer/_*.mjs etc.)
+services/indexer/_*.mjs
+services/indexer/_*.ts
+
 # Claude Code session conventions — kept local, never pushed
 CLAUDE.md
 AGENTS.md
