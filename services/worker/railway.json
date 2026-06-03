@@ -5,6 +5,7 @@
     "dockerfilePath": "services/worker/Dockerfile",
     "watchPatterns": [
       "services/worker/**",
+      "services/orchestrator/**",
       "packages/sdk/**",
       "services/worker/railway.json",
       "services/worker/Dockerfile"
