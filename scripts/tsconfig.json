@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": false,
+    "noEmit": true,
+    "types": ["node"],
+    "typeRoots": ["../services/bounty-cycler/node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "@bountymesh/sdk": ["../services/bounty-cycler/node_modules/@bountymesh/sdk/dist/index.d.ts"],
+      "@bountymesh/sdk/*": ["../services/bounty-cycler/node_modules/@bountymesh/sdk/dist/*"],
+      "@gear-js/api": ["../services/bounty-cycler/node_modules/@gear-js/api"],
+      "@polkadot/keyring": ["../services/bounty-cycler/node_modules/@polkadot/keyring"],
+      "@polkadot/keyring/types": ["../services/bounty-cycler/node_modules/@polkadot/keyring/types"],
+      "@polkadot/util-crypto": ["../services/bounty-cycler/node_modules/@polkadot/util-crypto"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}
