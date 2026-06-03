@@ -31,7 +31,23 @@ export function useAcceptBounty() {
       const { GearApi } = await import("@gear-js/api");
       const { BountyMeshClient } = await import("@bountymesh/sdk");
 
-      const api = await GearApi.create({ providerAddress: WS_URL });
+      // Public Vara RPC flaps with 1006 Abnormal Closure under load; fall back
+      // to archive RPC automatically.
+      const RPC_FALLBACKS = [WS_URL, "wss://archive-rpc.vara.network"];
+      let api: Awaited<ReturnType<typeof GearApi.create>> | null = null;
+      let lastErr: unknown = null;
+      for (const rpc of RPC_FALLBACKS) {
+        try {
+          api = await GearApi.create({ providerAddress: rpc });
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      if (!api) {
+        const detail = lastErr instanceof Error ? lastErr.message : String(lastErr);
+        throw new Error(`Could not reach a Vara RPC. Last error: ${detail}`);
+      }
       try {
         const client = new BountyMeshClient({
           api,
