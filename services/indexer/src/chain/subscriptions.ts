@@ -49,9 +49,13 @@
 import { BountyMeshClient } from '@bountymesh/sdk';
 import type {
   BountyAcceptedEvent,
+  BountyCancelledEvent,
   BountyClaimedEvent,
   BountyPostedEvent,
+  BountyRejectedEvent,
+  BountyRevokedEvent,
   BountySubmittedEvent,
+  BountyTimedOutEvent,
   BountyWithdrawnEvent,
 } from '@bountymesh/sdk';
 import type { GearApi } from '@gear-js/api';
@@ -111,7 +115,7 @@ export async function openSubscriptions(
 
   const pushHandler =
     <T extends BufferedEvent['eventName']>(eventName: T) =>
-    (e: BountyPostedEvent | BountyClaimedEvent | BountySubmittedEvent | BountyAcceptedEvent | BountyWithdrawnEvent): void => {
+    (e: BountyPostedEvent | BountyClaimedEvent | BountySubmittedEvent | BountyAcceptedEvent | BountyWithdrawnEvent | BountyRejectedEvent | BountyCancelledEvent | BountyTimedOutEvent | BountyRevokedEvent): void => {
       const event = { eventName, ...e } as BufferedEvent;
       buffer.push(event);
       logger.debug(
@@ -132,6 +136,10 @@ export async function openSubscriptions(
   unsubs.push(await client.onBountySubmitted(null, pushHandler('BountySubmitted')));
   unsubs.push(await client.onBountyAccepted(null, pushHandler('BountyAccepted')));
   unsubs.push(await client.onBountyWithdrawn(null, pushHandler('BountyWithdrawn')));
+  unsubs.push(await client.onBountyRejected(null, pushHandler('BountyRejected')));
+  unsubs.push(await client.onBountyCancelled(null, pushHandler('BountyCancelled')));
+  unsubs.push(await client.onBountyTimedOut(null, pushHandler('BountyTimedOut')));
+  unsubs.push(await client.onBountyRevoked(null, pushHandler('BountyRevoked')));
 
   const finalizedUnsubAsync = api.rpc.chain.subscribeFinalizedHeads(async (header: FinalizedHeader) => {
     const finalizedBlockNumber = header.number.toNumber();
