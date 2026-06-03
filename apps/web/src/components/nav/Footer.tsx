@@ -73,6 +73,16 @@ export function Footer() {
             <FooterChainPill />
           </button>
           <FooterAgentsPill />
+          <a
+            href="https://x.com/bountymesh"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-input border border-abyssal-ink/20 bg-ash-white px-3 py-1 text-xs font-medium text-abyssal-ink transition-colors hover:bg-pure-white"
+            aria-label="@bountymesh on X"
+          >
+            <span aria-hidden className="font-bold">𝕏</span>
+            @bountymesh
+          </a>
           <span className="text-xs font-medium text-abyssal-ink">{VERSION}</span>
         </div>
       </div>
