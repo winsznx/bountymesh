@@ -85,16 +85,33 @@ export function usePostBounty(): UsePostBountyResult {
           signer: { address: account.address, signer },
         });
 
+        const stringifyError = (e: unknown): string => {
+          if (typeof e === "string") return e;
+          if (e instanceof Error) return e.message;
+          if (e && typeof e === "object") {
+            const obj = e as { message?: unknown; kind?: unknown; error?: unknown };
+            if (typeof obj.message === "string") return obj.message;
+            if (typeof obj.kind === "string") return obj.kind;
+            if (typeof obj.error === "string") return obj.error;
+            try {
+              return JSON.stringify(e);
+            } catch {
+              return String(e);
+            }
+          }
+          return String(e);
+        };
+
         const result = await client.postWithCallback(args, {
           onSigning: () => setStage({ kind: "signing" }),
           onSubmitted: (txHash) =>
             setStage({ kind: "submitted", txHash: txHash as string }),
           onError: (err) =>
-            setStage({ kind: "error", message: err.message }),
+            setStage({ kind: "error", message: stringifyError(err) }),
         });
 
         if (!result.ok) {
-          const msg = result.error;
+          const msg = stringifyError(result.error);
           setStage({ kind: "error", message: msg });
           throw new Error(msg);
         }
