@@ -22,6 +22,57 @@ import type { CapabilityEntry, RouteResult, TopicTag } from './types.js';
 import { CAPABILITY_INDEX } from './capability-index.js';
 import { lookupOverride } from './overrides.js';
 
+/**
+ * Research-class bounties (open-ended prose, comparisons, explanations) are
+ * never well-served by routing to another program's typed query. They need
+ * an LLM to actually compose an answer. Detecting them up-front and returning
+ * null forces the worker's Groq fallback, which is the right delivery channel.
+ *
+ * Triggered on imperative verbs + lack of a structured entity to look up. We
+ * intentionally do NOT block content with concrete entities like "price of
+ * BTC", "last hour of A2A activity", or "bounty #N" — those still route well.
+ */
+const RESEARCH_VERBS = [
+  'research',
+  'summarize',
+  'summary',
+  'explain',
+  'describe',
+  'compare',
+  'analyze',
+  'analyse',
+  'write',
+  'draft',
+  'outline',
+  'discuss',
+  'review of',
+  'overview of',
+  'guide to',
+  'tutorial',
+  'walkthrough',
+  'breakdown of',
+  'deep dive',
+];
+
+const STRUCTURED_HINTS = [
+  /\bprice of [A-Z]{2,6}\b/i,
+  /\bbounty #\d+/i,
+  /\bblock #?\d+/i,
+  /\b0x[a-f0-9]{20,}/i,
+  /\bsha256\b/i,
+  /\b@[a-z][a-z0-9_-]+/i,
+];
+
+function isResearchClassContent(content: string): boolean {
+  const lc = content.toLowerCase();
+  const hasResearchVerb = RESEARCH_VERBS.some((verb) => lc.includes(verb));
+  if (!hasResearchVerb) return false;
+  // If the content also names a concrete on-chain entity, external routing
+  // may still be the right answer — let topic matching decide.
+  const hasStructuredHint = STRUCTURED_HINTS.some((re) => re.test(content));
+  return !hasStructuredHint;
+}
+
 const TICKER_RE = /\b([A-Z]{2,6})\b/g;
 
 const KNOWN_TICKERS = new Set([
@@ -207,6 +258,15 @@ function firstRoutable(
 }
 
 export function route(topics: TopicTag[], bountyContent: string): RouteResult | null {
+  // Pre-route gate: research-class bounties (explain/summarize/compare etc.
+  // without a concrete on-chain entity reference) should not route externally.
+  // No external Vara A2A app exposes a "research this topic" surface — they
+  // expose typed read methods over their own state. Returning null forces
+  // the worker's Groq fallback, which actually composes prose.
+  if (isResearchClassContent(bountyContent)) {
+    return null;
+  }
+
   let fallback: RouteResult | null = null;
 
   for (const topic of topics) {
